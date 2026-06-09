@@ -9,6 +9,16 @@ blocks with an online softmax (running max + running sum), so the full [T, T] sc
 matrix is never materialized. Causal block-skipping bounds the key loop to blocks that
 contain at least one allowed key.
 
+Masking, split two ways:
+- Causal masking is computed IN-KERNEL from block indices (no input needed).
+- Key-padding is supplied as a per-key additive bias [B, 1, T] (0.0 = keep,
+  `_NEG` = pad), folded into the scores before the online softmax. It is passed as a
+  full-T (un-blocked along the sequence) input so its block shape `(1, T)` equals the
+  array's last two dims and satisfies Mosaic's (8, 128) TPU tiling rule — a blocked
+  per-row [B, T] mask does NOT lower on TPU. The bias must vary the softmax denominator
+  per query row (pad-query rows attend only to valid keys), which a wrapper-level
+  "zero the padded V/output" trick cannot reproduce; hence it lives inside the kernel.
+
 Tested locally with `interpret=True` (CPU). Real timing requires a TPU (Pallas TPU).
 """
 
@@ -30,7 +40,7 @@ def _flash_kernel(
     q_ref,  # [block_q, D]
     k_ref,  # [T, D]
     v_ref,  # [T, D]
-    mask_ref,  # [T]
+    bias_ref,  # [1, T]  (key-padding additive bias: 0.0 keep, _NEG pad)
     o_ref,  # [block_q, D]  (output)
     *,
     block_k: int,
@@ -57,9 +67,9 @@ def _flash_kernel(
     def body(j: int, carry):
         m_prev, l_prev, acc_prev = carry
         k_start = j * block_k
-        kj = k_ref[pl.ds(k_start, block_k), :].astype(jnp.float32)  # [block_k, D]
-        vj = v_ref[pl.ds(k_start, block_k), :].astype(jnp.float32)  # [block_k, D]
-        mj = mask_ref[pl.ds(k_start, block_k)].astype(bool)         # [block_k]
+        kj = k_ref[pl.ds(k_start, block_k), :].astype(jnp.float32)   # [block_k, D]
+        vj = v_ref[pl.ds(k_start, block_k), :].astype(jnp.float32)   # [block_k, D]
+        bj = bias_ref[0, pl.ds(k_start, block_k)].astype(jnp.float32)  # [block_k]
         k_pos = k_start + jax.lax.broadcasted_iota(jnp.int32, (block_k,), 0)
 
         s = jax.lax.dot_general(
@@ -67,9 +77,9 @@ def _flash_kernel(
             preferred_element_type=jnp.float32,
         )  # [block_q, block_k]
 
+        # Add key-padding bias (0 keep / _NEG pad), then enforce causality.
         causal = q_pos[:, None] >= k_pos[None, :]
-        allowed = jnp.logical_and(causal, mj[None, :])
-        s = jnp.where(allowed, s, _NEG)
+        s = jnp.where(causal, s + bj[None, :], _NEG)
 
         m_cur = jnp.max(s, axis=-1)               # [block_q]
         m_new = jnp.maximum(m_prev, m_cur)
@@ -118,10 +128,13 @@ def pallas_attention(
     if t % bq != 0 or t % bk != 0:
         raise ValueError(f"block sizes (bq={bq}, bk={bk}) must divide T={t}")
 
+    # Key-padding -> additive score bias [B, 1, T] (0.0 keep, _NEG pad). Passed un-blocked
+    # along T so its block (1, T) equals the array's last two dims (TPU-legal tiling).
     if kv_mask is None:
-        mask = jnp.ones((b, t), dtype=bool)
+        bias = jnp.zeros((b, 1, t), dtype=jnp.float32)
     else:
-        mask = kv_mask.astype(bool)
+        keep = kv_mask.astype(bool)
+        bias = jnp.where(keep, 0.0, _NEG).astype(jnp.float32).reshape(b, 1, t)
 
     scale = 1.0 / math.sqrt(d)
     grid = (b, h, t // bq)
@@ -133,10 +146,10 @@ def pallas_attention(
             pl.BlockSpec((None, None, bq, d), lambda i, j, qb: (i, j, qb, 0)),  # q block
             pl.BlockSpec((None, None, t, d), lambda i, j, qb: (i, j, 0, 0)),    # full k
             pl.BlockSpec((None, None, t, d), lambda i, j, qb: (i, j, 0, 0)),    # full v
-            pl.BlockSpec((None, t), lambda i, j, qb: (i, 0)),                   # mask row
+            pl.BlockSpec((None, 1, t), lambda i, j, qb: (i, 0, 0)),             # bias row
         ],
         out_specs=pl.BlockSpec((None, None, bq, d), lambda i, j, qb: (i, j, qb, 0)),
         out_shape=jax.ShapeDtypeStruct((b, h, t, d), q.dtype),
         interpret=interpret,
-    )(q, k, v, mask)
+    )(q, k, v, bias)
     return out
