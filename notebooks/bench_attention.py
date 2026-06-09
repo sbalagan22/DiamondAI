@@ -19,9 +19,11 @@ import jax.numpy as jnp
 from src.model.attention_ref import attention_ref
 from src.model.attention_pallas import pallas_attention
 
-# Fixed dims; sweep T. Mirrors model scale (H=8, D=64 -> d_model 512-ish per the config).
-B, H, D = 4, 8, 64
-SEQ_LENS = (128, 256, 512, 1024)
+# Long-sequence sweep to find the Pallas-vs-XLA crossover. B=1, H=4 keeps it runnable at
+# T=8192, where the reference materializes a [B,H,T,T] score matrix (1*4*8192*8192*4B ~=
+# 1 GB) — the memory-heavy case the fused kernel is meant to survive.
+B, H, D = 1, 4, 64
+SEQ_LENS = (128, 256, 512, 1024, 2048, 4096, 8192)
 WARMUP = 3
 ITERS = 20
 
@@ -80,11 +82,24 @@ def main() -> None:
         v = jax.random.normal(k3, shape, dtype=jnp.float32)
         mask = jnp.ones((B, t), dtype=bool)
 
-        ref_ms = _time_fn(ref_fn, q, k, v, mask)
+        # Reference path only: the dense [B,H,T,T] matrix may exhaust device memory at
+        # long T. Catch that specific failure and still report Pallas — the kernel
+        # running where dense attention OOMs is itself the result.
+        ref_ms: float | None
+        try:
+            ref_ms = _time_fn(ref_fn, q, k, v, mask)
+        except jax.errors.JaxRuntimeError as exc:
+            if "RESOURCE_EXHAUSTED" not in str(exc) and "out of memory" not in str(exc):
+                raise
+            ref_ms = None
+
         pal_ms = _time_fn(pallas_fn, q, k, v, mask)
-        speedup = ref_ms / pal_ms if pal_ms > 0 else float("nan")
-        rows.append((t, ref_ms, pal_ms, speedup))
-        print(f"{t:>7} | {ref_ms:>10.3f} | {pal_ms:>10.3f} | {speedup:>7.2f}x")
+        rows.append((t, ref_ms, pal_ms))
+        if ref_ms is None:
+            print(f"{t:>7} | {'ref OOM':>10} | {pal_ms:>10.3f} | {'n/a':>8}")
+        else:
+            speedup = ref_ms / pal_ms if pal_ms > 0 else float("nan")
+            print(f"{t:>7} | {ref_ms:>10.3f} | {pal_ms:>10.3f} | {speedup:>7.2f}x")
 
     mem = _peak_mem_mb()
     if mem is not None:
