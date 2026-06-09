@@ -2,3 +2,6 @@
 /data/
 __pycache__/
 *.pyc
+# model checkpoints — never commit (Orbax dirs)
+/checkpoints/
+/6000/
