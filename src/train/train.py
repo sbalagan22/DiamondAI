@@ -170,10 +170,17 @@ def run_full(args: argparse.Namespace, mesh: Mesh) -> None:
     print(f"games: {len(games)} total -> {len(train_games)} train / {len(val_games)} val", file=sys.stderr)
 
     cfg = ModelConfig.from_vocab(
-        Path(args.data_dir) / "vocab.json", max_len=args.max_len, dropout=0.1
+        Path(args.data_dir) / "vocab.json", max_len=args.max_len, dropout=args.dropout
     )
     model = DecoderLM(cfg)
-    weights = LossWeights()
+    weights = LossWeights(home_win=args.w_home_win)
+    print(
+        f"config: dropout={cfg.dropout} | weights("
+        f"next_pitch_type={weights.next_pitch_type}, next_pitch_outcome={weights.next_pitch_outcome}, "
+        f"ab_outcome={weights.ab_outcome}, home_win={weights.home_win}) | "
+        f"patience={args.patience} min_delta={args.min_delta} | out_dir={Path(args.out_dir).resolve()}",
+        file=sys.stderr,
+    )
     optimizer = make_optimizer(args.lr, args.steps, warmup_steps=max(1, args.steps // 20))
     train_step = build_train_step(model, mesh, weights, deterministic=False)
     eval_step = build_eval_step(model, weights)
@@ -188,6 +195,9 @@ def run_full(args: argparse.Namespace, mesh: Mesh) -> None:
     epoch = 0
     train_iter = device_batches(train_games, args.batch_size, args.max_len, epoch, drop_last=True)
     metrics: dict[str, float] = {}
+    best_val = float("inf")
+    best_step = -1
+    stale_evals = 0
     for step in range(args.steps):
         try:
             batch = next(train_iter)
@@ -204,10 +214,22 @@ def run_full(args: argparse.Namespace, mesh: Mesh) -> None:
             print(f"step {step:6d} | train {_fmt(metrics)} | val {_fmt(val)}", file=sys.stderr)
             last_mgr.save(step, args=ocp.args.PyTreeSave(state.params))
             if val:
-                best_mgr.save(step, args=ocp.args.PyTreeSave(state.params), metrics={"val_loss": val["loss"]})
+                if val["loss"] < best_val - args.min_delta:
+                    best_val, best_step, stale_evals = val["loss"], step, 0
+                    best_mgr.save(step, args=ocp.args.PyTreeSave(state.params), metrics={"val_loss": best_val})
+                else:
+                    stale_evals += 1
+                    if stale_evals >= args.patience:
+                        print(
+                            f"stopping early at step {step}: val loss has not improved by > "
+                            f"{args.min_delta} for {args.patience} evals", file=sys.stderr,
+                        )
+                        break
 
     best_mgr.wait_until_finished()
     last_mgr.wait_until_finished()
+    if best_step >= 0:
+        print(f"best: step {best_step} | val_loss {best_val:.4f}", file=sys.stderr)
     print("done", file=sys.stderr)
 
 
@@ -255,6 +277,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--max-len", type=int, default=256)
     p.add_argument("--eval-interval", type=int, default=500)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--dropout", type=float, default=0.3, help="attention/MLP dropout rate")
+    p.add_argument("--w-home-win", type=float, default=0.1, help="home_win head loss weight")
+    p.add_argument("--patience", type=int, default=5, help="early stop after N evals without val-loss improvement")
+    p.add_argument("--min-delta", type=float, default=0.0, help="min val-loss decrease counted as improvement")
     p.add_argument("--overfit", action="store_true", help="tiny-slice wiring gate (assert loss < 0.1)")
     return p.parse_args(argv)
 
