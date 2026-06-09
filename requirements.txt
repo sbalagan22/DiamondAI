@@ -1,0 +1,9 @@
+pybaseball
+pandas
+pyarrow
+typing_extensions>=4.8
+tqdm
+jax[cpu]
+flax
+optax
+orbax-checkpoint
