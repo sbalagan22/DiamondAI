@@ -1,11 +1,18 @@
-"""Benchmark: reference vs Pallas fused attention forward pass across sequence lengths.
+"""Benchmark + autotune: reference (XLA) vs Pallas fused attention, across sequence lengths.
 
 Runnable as a Kaggle TPU cell (`%run notebooks/bench_attention.py`) or `python -m
 notebooks.bench_attention`. On TPU it reports real timings; on CPU it auto-switches the
-kernel to interpret mode and prints a warning that the numbers are NOT timing claims
-(the CPU interpreter is orders of magnitude slower than a compiled TPU kernel).
+kernel to interpret mode, runs a SMALL smoke subset, and warns that the numbers are NOT
+timing claims (the CPU interpreter is orders of magnitude slower than a compiled TPU
+kernel — the full heavy sweep is a TPU artifact).
 
-The printed table (length | ref ms | pallas ms | speedup) is the README artifact.
+For each length it times the XLA reference and autotunes the Pallas kernel over
+(block_q, block_k) in {128, 256, 512} (skipping configs that don't divide T), reporting
+the best Pallas config. Every Pallas config is correctness-checked against an oracle
+(the reference output, or the test-verified default 128x128 config when the dense
+reference OOMs) BEFORE its time is reported — an unverified config is never timed.
+
+The printed table (length | ref ms | best pallas ms | speedup | best cfg) is the artifact.
 """
 
 from __future__ import annotations
@@ -19,16 +26,24 @@ import jax.numpy as jnp
 from src.model.attention_ref import attention_ref
 from src.model.attention_pallas import pallas_attention
 
-# Long-sequence sweep to find the Pallas-vs-XLA crossover. B=1, H=4 keeps it runnable at
-# T=8192, where the reference materializes a [B,H,T,T] score matrix (1*4*8192*8192*4B ~=
-# 1 GB) — the memory-heavy case the fused kernel is meant to survive.
-B, H, D = 1, 4, 64
+# Heavier workload than the smoke shape: more arithmetic per block to amortize Pallas
+# per-block overhead and give the kernel a fair shot against XLA's own fusion.
+B, H, D = 4, 8, 64
 SEQ_LENS = (128, 256, 512, 1024, 2048, 4096, 8192)
-WARMUP = 3
-ITERS = 20
+BLOCK_CANDIDATES = (128, 256, 512)
+WARMUP, ITERS = 3, 20
+
+# Interpret mode (CPU) is for a correctness/harness smoke test only; keep it small and
+# fast since the timings are meaningless there anyway.
+SMOKE_SEQ_LENS = (128, 256, 512)
+SMOKE_WARMUP, SMOKE_ITERS = 1, 3
+
+# Reject a Pallas config whose output drifts past this from the oracle (gross-error guard;
+# the unit tests enforce the tight 1e-2 bound on the default config).
+_VERIFY_ATOL = 2e-2
 
 
-def _time_fn(fn, *args, iters: int = ITERS, warmup: int = WARMUP) -> float:
+def _time_fn(fn, *args, iters: int, warmup: int) -> float:
     """Median wall-clock ms over `iters` runs, after `warmup`, with block_until_ready."""
     for _ in range(warmup):
         jax.block_until_ready(fn(*args))
@@ -52,15 +67,32 @@ def _peak_mem_mb() -> float | None:
     return peak / 1e6 if peak else None
 
 
+def _configs_for(t: int) -> list[tuple[int, int]]:
+    """(block_q, block_k) candidates that evenly divide T."""
+    divs = [c for c in BLOCK_CANDIDATES if t % c == 0]
+    return [(bq, bk) for bq in divs for bk in divs]
+
+
+def _max_abs_err(a: jnp.ndarray, b: jnp.ndarray) -> float:
+    """Max absolute element difference (fp32, reduced on-device to one scalar)."""
+    return float(jnp.max(jnp.abs(a.astype(jnp.float32) - b.astype(jnp.float32))))
+
+
 def main() -> None:
     platform = jax.devices()[0].platform
     on_tpu = platform == "tpu"
     interpret = not on_tpu
 
-    print(f"device platform: {platform} | B={B} H={H} D={D} | iters={ITERS} warmup={WARMUP}")
+    seq_lens = SEQ_LENS if on_tpu else SMOKE_SEQ_LENS
+    warmup = WARMUP if on_tpu else SMOKE_WARMUP
+    iters = ITERS if on_tpu else SMOKE_ITERS
+
+    print(f"device platform: {platform} | B={B} H={H} D={D} | iters={iters} warmup={warmup}")
+    print(f"autotune block_q x block_k over {BLOCK_CANDIDATES} (configs that divide T)")
     if not on_tpu:
-        print("WARNING: not on TPU -> Pallas runs in interpret mode. Timings below are "
-              "NOT valid speedup claims; this run only confirms the bench executes.")
+        print("WARNING: not on TPU -> Pallas runs in interpret mode on a SMOKE subset. "
+              "Timings below are NOT speedup claims; this only verifies the harness + "
+              "per-config correctness. Run on Kaggle TPU for the real autotune table.")
 
     key = jax.random.PRNGKey(0)
 
@@ -68,13 +100,13 @@ def main() -> None:
     def ref_fn(q, k, v, m):
         return attention_ref(q, k, v, m)
 
-    def pallas_fn(q, k, v, m):
-        return pallas_attention(q, k, v, m, interpret=interpret)
+    def pallas_cfg(q, k, v, m, bq, bk):
+        return pallas_attention(q, k, v, m, block_q=bq, block_k=bk, interpret=interpret)
 
-    print(f"\n{'length':>7} | {'ref ms':>10} | {'pallas ms':>10} | {'speedup':>8}")
-    print("-" * 46)
-    rows = []
-    for t in SEQ_LENS:
+    print(f"\n{'length':>7} | {'ref ms':>10} | {'pallas ms':>10} | {'speedup':>8} | {'best cfg':>9}")
+    print("-" * 58)
+    best_overall: list[tuple[int, float]] = []  # (length, best speedup) where ref timed
+    for t in seq_lens:
         shape = (B, H, t, D)
         k1, k2, k3 = jax.random.split(key, 3)
         q = jax.random.normal(k1, shape, dtype=jnp.float32)
@@ -82,30 +114,65 @@ def main() -> None:
         v = jax.random.normal(k3, shape, dtype=jnp.float32)
         mask = jnp.ones((B, t), dtype=bool)
 
-        # Reference path only: the dense [B,H,T,T] matrix may exhaust device memory at
-        # long T. Catch that specific failure and still report Pallas — the kernel
-        # running where dense attention OOMs is itself the result.
+        # Reference (XLA) path only: the dense [B,H,T,T] matrix may exhaust device memory
+        # at long T. Catch that and still autotune Pallas — the kernel running where dense
+        # attention OOMs is itself the result.
         ref_ms: float | None
+        ref_out = None
         try:
-            ref_ms = _time_fn(ref_fn, q, k, v, mask)
+            ref_out = jax.block_until_ready(ref_fn(q, k, v, mask))
+            ref_ms = _time_fn(ref_fn, q, k, v, mask, iters=iters, warmup=warmup)
         except jax.errors.JaxRuntimeError as exc:
             if "RESOURCE_EXHAUSTED" not in str(exc) and "out of memory" not in str(exc):
                 raise
             ref_ms = None
 
-        pal_ms = _time_fn(pallas_fn, q, k, v, mask)
-        rows.append((t, ref_ms, pal_ms))
+        # Oracle for correctness checks: the reference if it ran, else the default 128x128
+        # Pallas config (the one the unit tests prove equals the reference).
+        oracle = ref_out
+        if oracle is None:
+            oracle = jax.block_until_ready(pallas_cfg(q, k, v, mask, 128, 128))
+
+        best_ms: float | None = None
+        best_cfg: tuple[int, int] | None = None
+        for bq, bk in _configs_for(t):
+            out = jax.block_until_ready(pallas_cfg(q, k, v, mask, bq, bk))
+            err = _max_abs_err(out, oracle)
+            if err > _VERIFY_ATOL:
+                print(f"  [skip] cfg {bq}x{bk} @ T={t}: max_abs_err={err:.3e} > {_VERIFY_ATOL}")
+                continue
+            ms = _time_fn(pallas_cfg, q, k, v, mask, bq, bk, iters=iters, warmup=warmup)
+            if best_ms is None or ms < best_ms:
+                best_ms, best_cfg = ms, (bq, bk)
+
+        cfg_str = f"{best_cfg[0]}x{best_cfg[1]}" if best_cfg else "none"
+        if best_ms is None:
+            print(f"{t:>7} | {'-':>10} | {'-':>10} | {'-':>8} | {cfg_str:>9}")
+            continue
         if ref_ms is None:
-            print(f"{t:>7} | {'ref OOM':>10} | {pal_ms:>10.3f} | {'n/a':>8}")
+            print(f"{t:>7} | {'ref OOM':>10} | {best_ms:>10.3f} | {'n/a':>8} | {cfg_str:>9}")
         else:
-            speedup = ref_ms / pal_ms if pal_ms > 0 else float("nan")
-            print(f"{t:>7} | {ref_ms:>10.3f} | {pal_ms:>10.3f} | {speedup:>7.2f}x")
+            speedup = ref_ms / best_ms if best_ms > 0 else float("nan")
+            best_overall.append((t, speedup))
+            print(f"{t:>7} | {ref_ms:>10.3f} | {best_ms:>10.3f} | {speedup:>7.2f}x | {cfg_str:>9}")
 
     mem = _peak_mem_mb()
     if mem is not None:
         print(f"\npeak device memory in use: {mem:.1f} MB")
+
+    # Plain conclusion from this run's data.
+    if best_overall:
+        wins = [(t, s) for t, s in best_overall if s > 1.0]
+        best_t, best_s = max(best_overall, key=lambda r: r[1])
+        print(f"\nbest Pallas speedup vs XLA (timed lengths): {best_s:.2f}x at T={best_t}")
+        if wins:
+            print("configs beating XLA (>1.0x): " + ", ".join(f"T={t} {s:.2f}x" for t, s in wins))
+        else:
+            print("no config beats XLA (>1.0x) at any timed length — XLA's own flash-style "
+                  "fusion wins at these scales.")
     if not on_tpu:
-        print("\n(interpret-mode run — see warning above; rerun on Kaggle TPU for real numbers)")
+        print("\n(interpret SMOKE run — correctness verified per config; rerun on Kaggle TPU "
+              "for the real autotune speedup table)")
 
 
 if __name__ == "__main__":
