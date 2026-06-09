@@ -7,10 +7,13 @@ timing claims (the CPU interpreter is orders of magnitude slower than a compiled
 kernel — the full heavy sweep is a TPU artifact).
 
 For each length it times the XLA reference and autotunes the Pallas kernel over
-(block_q, block_k) in {128, 256, 512} (skipping configs that don't divide T), reporting
-the best Pallas config. Every Pallas config is correctness-checked against an oracle
-(the reference output, or the test-verified default 128x128 config when the dense
-reference OOMs) BEFORE its time is reported — an unverified config is never timed.
+(block_q, block_k) in {128, 256, 512} — smaller/capped {64, 128, 256} for long T where
+the larger working set overflows scoped VMEM — skipping configs that don't divide T,
+reporting the best Pallas config. A config whose compile/run exceeds scoped VMEM is
+skipped ([vmem-oom]) and the sweep continues. Every surviving config is correctness-
+checked against an oracle (the reference output, or the test-verified default 128x128
+config when the dense reference OOMs) BEFORE its time is reported — an unverified config
+is never timed.
 
 The printed table (length | ref ms | best pallas ms | speedup | best cfg) is the artifact.
 """
@@ -31,6 +34,10 @@ from src.model.attention_pallas import pallas_attention
 B, H, D = 4, 8, 64
 SEQ_LENS = (128, 256, 512, 1024, 2048, 4096, 8192)
 BLOCK_CANDIDATES = (128, 256, 512)
+# At long T the 512x512 working set overflows the kernel's scoped VMEM (16 MB on v5e).
+# Add a smaller tile (64) and cap below 512 so at least one config fits.
+LONG_T = 8192
+LONG_BLOCK_CANDIDATES = (64, 128, 256)
 WARMUP, ITERS = 3, 20
 
 # Interpret mode (CPU) is for a correctness/harness smoke test only; keep it small and
@@ -68,9 +75,19 @@ def _peak_mem_mb() -> float | None:
 
 
 def _configs_for(t: int) -> list[tuple[int, int]]:
-    """(block_q, block_k) candidates that evenly divide T."""
-    divs = [c for c in BLOCK_CANDIDATES if t % c == 0]
+    """(block_q, block_k) candidates that evenly divide T, ascending (smallest first).
+
+    Long T uses smaller, capped tiles so the scoped VMEM working set fits.
+    """
+    cands = LONG_BLOCK_CANDIDATES if t >= LONG_T else BLOCK_CANDIDATES
+    divs = [c for c in cands if t % c == 0]
     return [(bq, bk) for bq in divs for bk in divs]
+
+
+def _is_oom(exc: BaseException) -> bool:
+    """True if a JAX runtime error is a device/VMEM resource-exhaustion (not some other RT error)."""
+    msg = str(exc).lower()
+    return "resource_exhausted" in msg or "vmem" in msg or "out of memory" in msg
 
 
 def _max_abs_err(a: jnp.ndarray, b: jnp.ndarray) -> float:
@@ -88,7 +105,8 @@ def main() -> None:
     iters = ITERS if on_tpu else SMOKE_ITERS
 
     print(f"device platform: {platform} | B={B} H={H} D={D} | iters={iters} warmup={warmup}")
-    print(f"autotune block_q x block_k over {BLOCK_CANDIDATES} (configs that divide T)")
+    print(f"autotune block_q x block_k over {BLOCK_CANDIDATES} "
+          f"({LONG_BLOCK_CANDIDATES} for T>={LONG_T}); configs that divide T")
     if not on_tpu:
         print("WARNING: not on TPU -> Pallas runs in interpret mode on a SMOKE subset. "
               "Timings below are NOT speedup claims; this only verifies the harness + "
@@ -123,20 +141,36 @@ def main() -> None:
             ref_out = jax.block_until_ready(ref_fn(q, k, v, mask))
             ref_ms = _time_fn(ref_fn, q, k, v, mask, iters=iters, warmup=warmup)
         except jax.errors.JaxRuntimeError as exc:
-            if "RESOURCE_EXHAUSTED" not in str(exc) and "out of memory" not in str(exc):
+            if not _is_oom(exc):
                 raise
             ref_ms = None
 
         # Oracle for correctness checks: the reference if it ran, else the default 128x128
-        # Pallas config (the one the unit tests prove equals the reference).
+        # Pallas config (the one the unit tests prove equals the reference). If even that
+        # OOMs, fall back to the first config that survives the sweep below.
         oracle = ref_out
         if oracle is None:
-            oracle = jax.block_until_ready(pallas_cfg(q, k, v, mask, 128, 128))
+            try:
+                oracle = jax.block_until_ready(pallas_cfg(q, k, v, mask, 128, 128))
+            except jax.errors.JaxRuntimeError as exc:
+                if not _is_oom(exc):
+                    raise
+                oracle = None
 
         best_ms: float | None = None
         best_cfg: tuple[int, int] | None = None
         for bq, bk in _configs_for(t):
-            out = jax.block_until_ready(pallas_cfg(q, k, v, mask, bq, bk))
+            # Compile+run; the swept block's working set may exceed scoped VMEM at long T.
+            try:
+                out = jax.block_until_ready(pallas_cfg(q, k, v, mask, bq, bk))
+            except jax.errors.JaxRuntimeError as exc:
+                if not _is_oom(exc):
+                    raise
+                print(f"  [vmem-oom] cfg {bq}x{bk} @ T={t}: scoped VMEM exceeded, skipped")
+                continue
+
+            if oracle is None:  # ref + default both OOMed: adopt first surviving config
+                oracle = out
             err = _max_abs_err(out, oracle)
             if err > _VERIFY_ATOL:
                 print(f"  [skip] cfg {bq}x{bk} @ T={t}: max_abs_err={err:.3e} > {_VERIFY_ATOL}")
