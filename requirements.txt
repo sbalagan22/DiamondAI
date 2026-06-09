@@ -7,3 +7,4 @@ jax[cpu]
 flax
 optax
 orbax-checkpoint
+pytest
