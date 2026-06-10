@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="DiamondAI">
+  <rect width="100" height="100" rx="22" fill="#1c1c1e"/>
+  <polygon points="30,27 70,27 60,49 40,49" fill="#e9e9ec"/>
+  <polygon points="30,27 40,49 14,49" fill="#bcbcc0"/>
+  <polygon points="70,27 86,49 60,49" fill="#d4d4d7"/>
+  <polygon points="14,49 40,49 50,90" fill="#4d8bff"/>
+  <polygon points="40,49 60,49 50,90" fill="#dcdcdf"/>
+  <polygon points="60,49 86,49 50,90" fill="#ff4b51"/>
+  <polygon points="30,27 70,27 86,49 50,90 14,49" fill="none" stroke="#f1f1f3" stroke-width="2.4" stroke-linejoin="round" opacity="0.6"/>
+  <line x1="14" y1="49" x2="86" y2="49" stroke="#f1f1f3" stroke-width="1.6" opacity="0.5"/>
+</svg>
