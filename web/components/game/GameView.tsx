@@ -59,7 +59,9 @@ function Scoreboard({
   paused: boolean;
   onTogglePause?: () => void;
 }) {
+  const reduce = useReducedMotion();
   const count = phase === "revealed" ? pitch.countAfter : pitch.countBefore;
+  const inningLabel = status === "final" ? "Final" : `${half} ${inning}`;
   return (
     <Panel className="overflow-hidden">
       <div className="accent-rule" />
@@ -99,8 +101,18 @@ function Scoreboard({
         </div>
         <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
           <StatusTag status={status} startLabel="" />
-          <span className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
-            {status === "final" ? "Final" : `${half} ${inning}`}
+          <span className="relative inline-flex h-4 items-center overflow-hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={inningLabel}
+                initial={reduce ? false : { y: "110%", opacity: 0 }}
+                animate={{ y: "0%", opacity: 1 }}
+                exit={reduce ? undefined : { y: "-110%", opacity: 0 }}
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              >
+                {inningLabel}
+              </motion.span>
+            </AnimatePresence>
           </span>
         </div>
       </div>
@@ -351,6 +363,8 @@ function WinProbPanel({
   const favP = homeP >= 0.5 ? homeP : 1 - homeP;
   const dUp = delta > 0.005;
   const dDown = delta < -0.005;
+  const reduce = useReducedMotion();
+  const big = Math.abs(delta) >= 0.08;
 
   return (
     <Panel>
@@ -374,7 +388,15 @@ function WinProbPanel({
             className="flex items-center gap-1 font-mono text-xs font-semibold tabular-nums"
             style={{ color: dUp ? "var(--model)" : dDown ? "var(--live)" : "var(--faint)" }}
           >
-            {dUp ? "▲" : dDown ? "▼" : "—"} {Math.abs(pct(delta))}
+            <motion.span
+              key={Math.round(homeP * 1000)}
+              className="inline-flex items-center gap-1"
+              initial={reduce ? false : { scale: big ? 1.55 : 1.18, opacity: 0.5 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 360, damping: big ? 14 : 20 }}
+            >
+              {dUp ? "▲" : dDown ? "▼" : "—"} {Math.abs(pct(delta))}
+            </motion.span>
             <span className="font-normal text-[var(--faint)]">pts {home.abbr}</span>
           </div>
         </div>
