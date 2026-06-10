@@ -279,8 +279,8 @@ export function Verdict({ hit, label }: { hit: boolean; label: string }) {
     <span
       className="inline-flex items-center gap-1.5 rounded-[var(--r-chip)] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em]"
       style={{
-        color: hit ? "var(--model)" : "var(--live)",
-        background: hit ? "var(--model-soft)" : "var(--live-soft)",
+        color: hit ? "var(--hit)" : "var(--miss)",
+        background: hit ? "var(--hit-soft)" : "var(--miss-soft)",
       }}
     >
       <span className="text-[11px] leading-none">{hit ? "✓" : "✕"}</span>

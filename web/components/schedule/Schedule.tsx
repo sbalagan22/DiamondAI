@@ -212,12 +212,12 @@ function MiniCall({ p }: { p: ViewPitch }) {
       <span className="flex shrink-0 gap-1.5">
         <span
           className="h-2 w-2 rounded-full"
-          style={{ background: p.typeHit ? "var(--model)" : "var(--live)" }}
+          style={{ background: p.typeHit ? "var(--hit)" : "var(--miss)" }}
           title={`Pitch type — ${p.typeHit ? "hit" : "miss"}`}
         />
         <span
           className="h-2 w-2 rounded-full"
-          style={{ background: p.outcomeHit ? "var(--model)" : "var(--live)" }}
+          style={{ background: p.outcomeHit ? "var(--hit)" : "var(--miss)" }}
           title={`Outcome — ${p.outcomeHit ? "hit" : "miss"}`}
         />
       </span>
@@ -305,11 +305,11 @@ function Spotlight({ game }: { game: Game }) {
               <Eyebrow>Latest calls</Eyebrow>
               <span className="flex items-center gap-2.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--faint)]">
                 <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--model)" }} />
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--hit)" }} />
                   hit
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--live)" }} />
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--miss)" }} />
                   miss
                 </span>
               </span>

@@ -445,12 +445,12 @@ function FeedRow({ item }: { item: ViewPitch }) {
       <div className="flex justify-end gap-1.5">
         <span
           className="h-2 w-2 rounded-full"
-          style={{ background: typeHit ? "var(--model)" : "var(--live)" }}
+          style={{ background: typeHit ? "var(--hit)" : "var(--miss)" }}
           title={`Pitch type — ${typeHit ? "hit" : "miss"}`}
         />
         <span
           className="h-2 w-2 rounded-full"
-          style={{ background: outcomeHit ? "var(--model)" : "var(--live)" }}
+          style={{ background: outcomeHit ? "var(--hit)" : "var(--miss)" }}
           title={`Outcome — ${outcomeHit ? "hit" : "miss"}`}
         />
       </div>
@@ -466,10 +466,10 @@ function PitchFeed({ history }: { history: ViewPitch[] }) {
         right={
           <span className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: "var(--model)" }} /> hit
+              <span className="h-2 w-2 rounded-full" style={{ background: "var(--hit)" }} /> hit
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: "var(--live)" }} /> miss
+              <span className="h-2 w-2 rounded-full" style={{ background: "var(--miss)" }} /> miss
             </span>
           </span>
         }
