@@ -25,6 +25,7 @@ import { getGame } from "@/lib/mock";
 import type { Game } from "@/lib/types";
 import { cx, pct } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
+import { ResultFlash, StrikeoutStamp } from "./moments";
 
 const PREDICT_MS = 3400;
 const REVEAL_MS = 2800;
@@ -173,6 +174,7 @@ function PredictionHero({
   const revealed = phase === "revealed";
   const p = pitch.predicted;
   const a = pitch.actual;
+  const strikeout = revealed && /strikeout/i.test(pitch.abEnd ?? "");
 
   return (
     <Panel className="overflow-hidden">
@@ -213,7 +215,8 @@ function PredictionHero({
         </CallColumn>
 
         {/* STRIKE ZONE */}
-        <div className="flex flex-col items-center gap-3 justify-self-center sm:border-x sm:border-[var(--line)] sm:px-9">
+        <div className="relative flex flex-col items-center gap-3 justify-self-center sm:border-x sm:border-[var(--line)] sm:px-9">
+          <StrikeoutStamp key={pitch.index} show={strikeout} />
           <StrikeZone predictedZone={p.zone} actualZone={a.zone} revealed={revealed} />
           <div className="flex items-center gap-3.5 font-mono text-[9.5px] uppercase tracking-[0.16em]">
             <span className="flex items-center gap-1.5 text-[var(--model)]">
@@ -242,8 +245,9 @@ function PredictionHero({
               </div>
             </div>
           ) : (
-            <div className="min-h-[8rem] animate-[fadeUp_.45s_ease-out]">
-              <div className="flex items-baseline gap-2.5">
+            <ResultFlash key={pitch.index} hit={pitch.outcomeHit}>
+              <div className="min-h-[8rem]">
+                <div className="flex items-baseline gap-2.5">
                 <span className="font-display text-[2.3rem] font-bold leading-none tracking-tight text-[var(--text)] sm:text-[2.8rem]">
                   {a.pitchType}
                 </span>
@@ -258,8 +262,9 @@ function PredictionHero({
               <div className="mt-5 flex flex-wrap gap-2">
                 <Verdict hit={pitch.typeHit} label="Type" />
                 <Verdict hit={pitch.outcomeHit} label="Outcome" />
+                </div>
               </div>
-            </div>
+            </ResultFlash>
           )}
         </CallColumn>
       </div>

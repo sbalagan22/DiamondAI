@@ -2,7 +2,7 @@
 
 /* DiamondAI — shared UI primitives (ported from design/components.jsx) */
 import Image from "next/image";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { cx, pct } from "@/lib/ui";
 import type { ViewTeam, Zone } from "@/lib/view";
 import { GlassPanel } from "./GlassPanel";
@@ -196,7 +196,11 @@ export function CountPips({
   );
 }
 
-// 3x3 strike-zone grid — predicted dot (model blue), actual marker (white ×)
+// 3x3 strike-zone grid — predicted dot (model blue), then the pitch flies in
+// on reveal: a ball travels to the landing cell, which flares, and the × snaps.
+const ZONE_W = 96;
+const ZONE_H = 112;
+
 export function StrikeZone({
   predictedZone,
   actualZone,
@@ -206,14 +210,19 @@ export function StrikeZone({
   actualZone: Zone | null;
   revealed: boolean;
 }) {
+  const reduce = useReducedMotion();
   const cellAt = (z: Zone) => z.row * 3 + z.col;
   const pIdx = cellAt(predictedZone);
   const aIdx = actualZone ? cellAt(actualZone) : -1;
+  const ballX = actualZone ? ((actualZone.col + 0.5) / 3) * ZONE_W : ZONE_W / 2;
+  const ballY = actualZone ? ((actualZone.row + 0.5) / 3) * ZONE_H : ZONE_H / 2;
+  const xDelay = reduce ? 0 : 0.42;
+
   return (
-    <div className="inline-block">
+    <div className="relative inline-block" style={{ width: ZONE_W, height: ZONE_H }}>
       <div
-        className="grid grid-cols-3 grid-rows-3"
-        style={{ width: 96, height: 112, boxShadow: "inset 0 0 0 1px var(--hair-mid)" }}
+        className="grid h-full w-full grid-cols-3 grid-rows-3"
+        style={{ boxShadow: "inset 0 0 0 1px var(--hair-mid)" }}
       >
         {Array.from({ length: 9 }).map((_, i) => (
           <div key={i} className="relative" style={{ boxShadow: "inset 0 0 0 0.5px var(--hair)" }}>
@@ -227,26 +236,54 @@ export function StrikeZone({
                   background: "var(--model-soft)",
                   boxShadow: "0 0 0 1.5px var(--model)",
                 }}
-                initial={{ scale: 0.4, opacity: 0 }}
+                initial={reduce ? false : { scale: 0.4, opacity: 0 }}
                 animate={{ scale: 1, opacity: revealed ? 0.55 : 1 }}
                 transition={{ type: "spring", stiffness: 300, damping: 22 }}
               />
             )}
             {revealed && i === aIdx && (
-              <motion.span
-                key={`a-${aIdx}`}
-                className="absolute left-1/2 top-1/2 font-mono text-[15px] font-bold leading-none text-[var(--ink)]"
-                style={{ x: "-50%", y: "-50%" }}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 24, delay: 0.05 }}
-              >
-                ×
-              </motion.span>
+              <>
+                {!reduce && (
+                  <motion.span
+                    key={`flare-${aIdx}`}
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{ background: "var(--chalk-soft)" }}
+                    initial={{ opacity: 0.85 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 0.7, delay: 0.4, ease: "easeOut" }}
+                  />
+                )}
+                <motion.span
+                  key={`a-${aIdx}`}
+                  className="absolute left-1/2 top-1/2 font-mono text-[15px] font-bold leading-none text-[var(--ink)]"
+                  style={{ x: "-50%", y: "-50%" }}
+                  initial={reduce ? false : { scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 24, delay: xDelay }}
+                >
+                  ×
+                </motion.span>
+              </>
             )}
           </div>
         ))}
       </div>
+      {revealed && actualZone && !reduce && (
+        <motion.span
+          key={`ball-${aIdx}`}
+          aria-hidden
+          className="pointer-events-none absolute left-0 top-0 h-2.5 w-2.5 rounded-full"
+          style={{ background: "var(--ink)", boxShadow: "0 0 10px var(--chalk-soft)" }}
+          initial={{ x: ZONE_W / 2 - 5, y: -34, opacity: 0, scale: 0.6 }}
+          animate={{ x: ballX - 5, y: ballY - 5, opacity: [0, 1, 1, 0], scale: 1 }}
+          transition={{
+            duration: 0.44,
+            ease: [0.4, 0, 0.2, 1],
+            opacity: { duration: 0.5, times: [0, 0.15, 0.82, 1] },
+          }}
+        />
+      )}
     </div>
   );
 }
