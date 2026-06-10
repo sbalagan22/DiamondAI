@@ -1,23 +1,18 @@
 "use client";
 
-/* DiamondAI — site-wide aurora backdrop. Mounts the WebGL `Aurora` fixed behind
-   all content, reading the MLB red/blue `--aurora-*` tokens and re-keying it on
-   a theme switch so the colors track dark/light. Sits above the CSS fallback
-   wash (body::before, z -2) and below page content.
-
-   Theme colors are read via useSyncExternalStore (client-only, subscribed to
-   the <html data-theme> attribute) — no SSR canvas, no setState-in-effect. */
+/* DiamondAI — animated aurora at the top of the landing page. Reads the MLB
+   red/white (white|black-by-mode) `--aurora-*` tokens and re-keys on a theme
+   switch. Absolutely positioned at the top, full-bleed, fading out downward —
+   it scrolls away with the page (no fixed-scroll artifacts). */
 import { useSyncExternalStore } from "react";
 import { Aurora } from "./Aurora";
 
 function readStops(): [string, string, string] {
   const s = getComputedStyle(document.documentElement);
   const g = (n: string, f: string) => s.getPropertyValue(n).trim() || f;
-  return [g("--aurora-1", "#ff4b51"), g("--aurora-2", "#4d8bff"), g("--aurora-3", "#ff3b62")];
+  return [g("--aurora-1", "#ff4b51"), g("--aurora-2", "#ffffff"), g("--aurora-3", "#ff2d4a")];
 }
 
-// Cache the snapshot, keyed by theme, so useSyncExternalStore gets a stable
-// reference between unrelated renders (a fresh array each call would loop).
 let cache: [string, string, string] | null = null;
 let cacheKey = "";
 function getSnapshot(): [string, string, string] {
@@ -37,18 +32,19 @@ function subscribe(onChange: () => void): () => void {
   return () => obs.disconnect();
 }
 
-export function Backdrop() {
+export function LandingAurora() {
   const stops = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 overflow-hidden"
-      style={{ zIndex: -1 }}
+      className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[540px] overflow-hidden sm:h-[720px]"
+      style={{
+        maskImage: "linear-gradient(to bottom, black 0%, black 46%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 46%, transparent 100%)",
+      }}
     >
       {stops && (
-        <div className="absolute inset-x-0 -top-[10%] h-[90%] opacity-90">
-          <Aurora key={stops.join("|")} colorStops={stops} amplitude={1.05} blend={0.6} speed={0.4} />
-        </div>
+        <Aurora key={stops.join("|")} colorStops={stops} amplitude={1.1} blend={0.5} speed={0.6} />
       )}
     </div>
   );

@@ -1,9 +1,9 @@
 "use client";
 
 /* DiamondAI — Live Game view, ported from design/game.jsx and driven by the
-   mock game script via a predict -> reveal simulated ticker. Flat surfaces, a
-   centered scoreboard, model-blue accents on key numbers, and a compact
-   Polymarket reference folded into the win-probability panel. */
+   mock game script via a predict -> reveal simulated ticker. Flat surfaces with
+   liquid glass on the hero scoreboard, a centered/responsive matchup, model-blue
+   accents on key numbers, and a compact Polymarket reference in the win-prob panel. */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -52,7 +52,22 @@ function ScoreLogo({ team }: { team: ViewTeam }) {
   );
 }
 
-// ---- Scoreboard — centered, symmetric matchup ------------------------------
+// Team name — full on sm+, abbreviation on mobile (keeps the scoreboard tidy).
+function TeamName({ team, align }: { team: ViewTeam; align: "left" | "right" }) {
+  return (
+    <div className={cx("min-w-0 leading-tight", align === "right" ? "text-right" : "text-left")}>
+      <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)] sm:text-[17px]">
+        <span className="sm:hidden">{team.abbr}</span>
+        <span className="hidden sm:inline">{team.name}</span>
+      </div>
+      <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
+        {team.city}
+      </div>
+    </div>
+  );
+}
+
+// ---- Scoreboard — liquid glass, centered, symmetric, responsive ------------
 function Scoreboard({
   away,
   home,
@@ -83,8 +98,10 @@ function Scoreboard({
   const reduce = useReducedMotion();
   const count = phase === "revealed" ? pitch.countAfter : pitch.countBefore;
   const inningLabel = status === "final" ? "Final" : `${half} ${inning}`;
+  const scoreCls =
+    "font-mono text-[30px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)] sm:text-[40px]";
   return (
-    <Panel className="relative overflow-hidden">
+    <section className="liquid-glass relative overflow-hidden rounded-[var(--r-card)]">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -112,47 +129,27 @@ function Scoreboard({
         </div>
 
         {/* centered matchup: away · score – score · home */}
-        <div className="flex items-center justify-center gap-3 px-4 py-4 sm:gap-6 sm:px-6">
-          <div className="flex min-w-0 items-center justify-end gap-2.5">
-            <div className="min-w-0 text-right leading-tight">
-              <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)] sm:text-[17px]">
-                {away.name}
-              </div>
-              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
-                {away.city}
-              </div>
-            </div>
+        <div className="flex items-center justify-center gap-2.5 px-3 py-4 sm:gap-6 sm:px-6">
+          <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-2.5">
+            <TeamName team={away} align="right" />
             <ScoreLogo team={away} />
           </div>
 
-          <div className="flex shrink-0 items-center gap-2.5 sm:gap-3.5">
-            <TickNumber
-              value={awayScore}
-              className="font-mono text-[34px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)] sm:text-[40px]"
-            />
-            <span className="font-mono text-[20px] text-[var(--faint)]">–</span>
-            <TickNumber
-              value={homeScore}
-              className="font-mono text-[34px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)] sm:text-[40px]"
-            />
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3.5">
+            <TickNumber value={awayScore} className={scoreCls} />
+            <span className="font-mono text-[18px] text-[var(--faint)] sm:text-[20px]">–</span>
+            <TickNumber value={homeScore} className={scoreCls} />
           </div>
 
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <ScoreLogo team={home} />
-            <div className="min-w-0 leading-tight">
-              <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)] sm:text-[17px]">
-                {home.name}
-              </div>
-              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
-                {home.city}
-              </div>
-            </div>
+            <TeamName team={home} align="left" />
           </div>
         </div>
 
         {/* situational band */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--line)] px-5 py-3.5 sm:px-6">
-          <div className="flex items-center gap-6 sm:gap-8">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[var(--line)] px-5 py-3.5 sm:px-6">
+          <div className="flex items-center gap-5 sm:gap-8">
             <div className="flex items-baseline gap-1.5">
               <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
                 {count.balls}
@@ -185,7 +182,7 @@ function Scoreboard({
           </div>
         </div>
       </div>
-    </Panel>
+    </section>
   );
 }
 
@@ -342,13 +339,11 @@ function PersonCard({
   return (
     <div className={cx("flex flex-col gap-1", align === "right" && "items-end text-right")}>
       <Eyebrow>{role}</Eyebrow>
-      <div className="whitespace-nowrap text-[15px] font-semibold text-[var(--text)]">{name}</div>
-      <div className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--faint)]">
+      <div className="text-[15px] font-semibold text-[var(--text)]">{name}</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--faint)]">
         {teamAbbr}
       </div>
-      <div className="mt-0.5 whitespace-nowrap font-mono text-[11px] tabular-nums text-[var(--muted)]">
-        {line}
-      </div>
+      <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--muted)]">{line}</div>
     </div>
   );
 }
@@ -364,7 +359,7 @@ function Matchup({ game, pitch }: { game: Game; pitch: ViewPitch }) {
   return (
     <Panel>
       <PanelHead label="Matchup" />
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4 px-5 py-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 px-5 py-4 sm:gap-4">
         <PersonCard role="Pitching" name={pitch.pitcher} teamAbbr={fieldingSide.abbr} line={pitcherLine} />
         <span className="self-center font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
           vs
@@ -746,7 +741,7 @@ function PreGameView({ game }: { game: Game }) {
   const home = viewTeam(game.home);
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6">
-      <Panel className="relative overflow-hidden">
+      <section className="liquid-glass relative overflow-hidden rounded-[var(--r-card)]">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
@@ -754,11 +749,12 @@ function PreGameView({ game }: { game: Game }) {
         />
         <div className="relative">
           <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
-          <div className="flex items-center justify-center gap-4 px-5 py-5 sm:gap-6 sm:px-6">
+          <div className="flex items-center justify-center gap-3 px-5 py-5 sm:gap-6 sm:px-6">
             <div className="flex items-center gap-2.5">
               <Monogram team={away} size="md" />
               <span className="text-[15px] font-semibold text-[var(--text)] sm:text-[17px]">
-                {away.name}
+                <span className="sm:hidden">{away.abbr}</span>
+                <span className="hidden sm:inline">{away.name}</span>
               </span>
             </div>
             <span className="font-mono text-[12px] uppercase tracking-[0.16em] text-[var(--faint)]">
@@ -766,7 +762,8 @@ function PreGameView({ game }: { game: Game }) {
             </span>
             <div className="flex items-center gap-2.5">
               <span className="text-[15px] font-semibold text-[var(--text)] sm:text-[17px]">
-                {home.name}
+                <span className="sm:hidden">{home.abbr}</span>
+                <span className="hidden sm:inline">{home.name}</span>
               </span>
               <Monogram team={home} size="md" />
             </div>
@@ -775,7 +772,7 @@ function PreGameView({ game }: { game: Game }) {
             <StatusTag status="upcoming" startLabel={game.startTime} />
           </div>
         </div>
-      </Panel>
+      </section>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.55fr_1fr]">
         <Panel className="overflow-hidden">

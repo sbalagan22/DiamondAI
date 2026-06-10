@@ -101,7 +101,7 @@ export function PillNav({ mode = "home" }: { mode?: "home" | "game" }) {
           initial={reduce ? false : { opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="glass-pill flex h-[52px] items-center justify-between gap-3 rounded-full pl-2 pr-2 sm:pl-4 sm:pr-3"
+          className="liquid-glass flex h-[52px] items-center justify-between gap-3 rounded-full pl-2 pr-2 sm:pl-4 sm:pr-3"
         >
           <div className="flex min-w-0 items-center gap-1.5">
             {mode === "game" && (

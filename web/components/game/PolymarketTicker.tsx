@@ -95,7 +95,7 @@ export function PolymarketTicker({
           href={market.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="pointer-events-auto inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] transition-colors hover:text-[var(--text)]"
+          className="pointer-events-auto relative z-[2] inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted)] transition-colors hover:text-[var(--text)]"
         >
           Open <span aria-hidden>↗</span>
         </a>

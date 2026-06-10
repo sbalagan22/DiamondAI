@@ -13,9 +13,10 @@
 }
 
 /* =================================================================
-   DiamondAI — true-neutral graphite base. Flat, solid surfaces carry
-   the content; one frosted-glass surface (the nav) + the FluidGlass
-   hero are the only "glass". A vivid red/blue aurora lives behind it all.
+   DiamondAI — true-neutral graphite base. Flat solid surfaces carry most
+   content; "liquid glass" (.liquid-glass — backdrop blur + SVG refraction +
+   specular sheen) is reserved for the nav and a few key/hero surfaces. An
+   animated MLB red/white aurora sits at the top of the landing page.
    ================================================================= */
 :root {
   color-scheme: dark;
@@ -58,10 +59,10 @@
   --miss:       #ff5b61;
   --miss-soft:  rgba(255, 91, 97, 0.18);
 
-  /* aurora stops (MLB red ↔ blue) read by the WebGL backdrop */
-  --aurora-1: #ff4b51;
-  --aurora-2: #4d8bff;
-  --aurora-3: #ff3b62;
+  /* aurora stops read by the landing WebGL aurora — MLB red + white (dark) */
+  --aurora-1: #ff4b51;   /* MLB red */
+  --aurora-2: #ffffff;   /* white */
+  --aurora-3: #ff2d4a;   /* red */
 
   /* ---- semantic fills & hairlines (so light mode can invert them) ---- */
   --fill:        rgba(255,255,255,0.05);
@@ -89,20 +90,6 @@
 }
 
 html, body { background: var(--bg); }
-
-/* CSS fallback wash — the aurora <canvas> renders above this (z -1); if WebGL
-   is unavailable this still gives the page vivid red/blue corners. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    radial-gradient(58% 50% at 88% -10%, rgba(77, 139, 255, 0.28), transparent 60%),
-    radial-gradient(55% 48% at 4% 110%, rgba(255, 75, 81, 0.24), transparent 62%),
-    var(--bg);
-}
 
 body {
   font-family: var(--font-sans);
@@ -134,19 +121,51 @@ body {
   box-shadow: var(--shadow-lift);
 }
 
-/* ---- the one frosted surface: the floating nav pill ------------------------ */
-.glass-pill {
+/* ---- liquid glass — the nav + key/hero surfaces ----------------------------
+   Backdrop blur + SVG displacement (#liquid-glass) refracts what's behind it;
+   a specular inset stack + a diagonal top sheen sell the wet-glass edge. */
+.liquid-glass {
   position: relative;
+  isolation: isolate;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.03)),
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.025)),
     var(--glass);
-  -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(1.08);
-  backdrop-filter: url(#liquid-glass) blur(30px) saturate(190%) brightness(1.08);
+  -webkit-backdrop-filter: blur(28px) saturate(188%) brightness(1.07);
+  backdrop-filter: url(#liquid-glass) blur(28px) saturate(188%) brightness(1.07);
   border: 1px solid var(--glass-border-hi);
-  box-shadow: var(--spec), 0 16px 38px -16px rgba(0,0,0,0.7);
+  box-shadow: var(--spec), var(--shadow-card);
+}
+.liquid-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(133deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 36%);
+  mix-blend-mode: screen;
+  opacity: 0.7;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass-pill { background: #353537; }
+  .liquid-glass { background: var(--glass-solid); }
+}
+
+/* ---- hover sheen — a soft highlight that sweeps across on group hover ------ */
+.sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 36%, rgba(255, 255, 255, 0.10) 48%, transparent 60%);
+  transform: translateX(-130%);
+  opacity: 0;
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+}
+.group:hover .sheen,
+.group:focus-within .sheen {
+  transform: translateX(130%);
+  opacity: 1;
 }
 
 /* red → blue signature hairline (used on neutral cards) */
@@ -216,9 +235,9 @@ body {
   --miss:       #e23a40;
   --miss-soft:  rgba(226, 58, 64, 0.12);
 
-  --aurora-1: #e23a40;
-  --aurora-2: #2f6bf0;
-  --aurora-3: #d12f63;
+  --aurora-1: #e23a40;   /* MLB red */
+  --aurora-2: #111114;   /* near-black (light mode) */
+  --aurora-3: #e23a40;   /* red */
 
   --fill:        rgba(0,0,0,0.04);
   --fill-hi:     rgba(0,0,0,0.08);
@@ -234,19 +253,18 @@ body {
           inset 0 -1px 1px rgba(0,0,0,0.05);
 }
 
-:root[data-theme="light"] body::before {
-  background:
-    radial-gradient(58% 50% at 88% -10%, rgba(47, 107, 240, 0.18), transparent 60%),
-    radial-gradient(55% 48% at 4% 110%, rgba(226, 58, 64, 0.15), transparent 62%),
-    var(--bg);
-}
-:root[data-theme="light"] .glass-pill {
+:root[data-theme="light"] .liquid-glass {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.42)),
     var(--glass);
 }
+:root[data-theme="light"] .liquid-glass::after {
+  background: linear-gradient(133deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 36%);
+  mix-blend-mode: normal;
+  opacity: 0.55;
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root[data-theme="light"] .glass-pill  { background: #fbfbfc; }
+  :root[data-theme="light"] .liquid-glass { background: #fbfbfc; }
 }
 
 :root[data-theme="light"] ::selection { background: rgba(47,107,240,.22); }

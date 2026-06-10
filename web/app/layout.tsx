@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, Bricolage_Grotesque, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { Backdrop } from "@/components/visual/Backdrop";
 import { MockBadge } from "@/components/ui/MockBadge";
 
 // Variable fonts — omit `weight` and expose as CSS variables (see globals.css).
@@ -44,7 +43,6 @@ export default function RootLayout({
     >
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <Backdrop />
         {/* liquid-glass refraction: feTurbulence -> feDisplacementMap bends the backdrop */}
         <svg
           width="0"
