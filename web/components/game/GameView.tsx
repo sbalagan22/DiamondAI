@@ -430,24 +430,30 @@ function AccuracyPanel({ history }: { history: ViewPitch[] }) {
 }
 
 // ---- Pitch feed ------------------------------------------------------------
-function FeedRow({ item }: { item: ViewPitch }) {
+function FeedRow({ item, prevWp }: { item: ViewPitch; prevWp?: number }) {
   const reduce = useReducedMotion();
   const { predicted: p, actual: a, typeHit, outcomeHit } = item;
+  const dwp = prevWp != null ? Math.round((item.homeWinProbAfter - prevWp) * 100) : 0;
+  // Newly-resolved rows flash their outcome color, then settle (premium "pulse").
+  const pulse = outcomeHit ? "rgba(63,185,80,0.20)" : "rgba(255,91,97,0.20)";
   return (
     <motion.div
       layout
-      initial={reduce ? false : { opacity: 0, y: -12 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={reduce ? false : { opacity: 0, y: -12, backgroundColor: pulse }}
+      animate={{ opacity: 1, y: 0, backgroundColor: "rgba(0,0,0,0)" }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      className="grid grid-cols-[2rem_1fr_1fr_2.2rem] items-center gap-3 px-4 py-3 sm:px-5"
+      transition={{
+        default: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+        backgroundColor: { duration: 1.2, ease: "easeOut" },
+      }}
+      className="grid grid-cols-[1.9rem_1fr_1fr_auto] items-center gap-3 px-4 py-3 sm:px-5"
     >
       <span className="font-mono text-[11px] tabular-nums text-[var(--faint)]">
         {String(item.index + 1).padStart(2, "0")}
       </span>
       <div className="min-w-0">
         <div className="truncate text-[13px] font-medium text-[var(--muted)]">{p.pitchType}</div>
-        <div className="truncate font-mono text-[11px] text-[var(--faint)]">{p.outcome}</div>
+        <div className="truncate font-mono text-[10.5px] text-[var(--faint)]">{p.outcome}</div>
       </div>
       <div className="min-w-0">
         <div className="truncate text-[13px] font-medium text-[var(--text)]">
@@ -456,19 +462,27 @@ function FeedRow({ item }: { item: ViewPitch }) {
             {a.velo.toFixed(0)}
           </span>
         </div>
-        <div className="truncate font-mono text-[11px] text-[var(--muted)]">{a.outcome}</div>
+        <div className="truncate font-mono text-[10.5px] text-[var(--muted)]">{a.outcome}</div>
       </div>
-      <div className="flex justify-end gap-1.5">
-        <span
-          className="h-2 w-2 rounded-full"
-          style={{ background: typeHit ? "var(--hit)" : "var(--miss)" }}
-          title={`Pitch type — ${typeHit ? "hit" : "miss"}`}
-        />
-        <span
-          className="h-2 w-2 rounded-full"
-          style={{ background: outcomeHit ? "var(--hit)" : "var(--miss)" }}
-          title={`Outcome — ${outcomeHit ? "hit" : "miss"}`}
-        />
+      <div className="flex items-center gap-2.5">
+        {dwp !== 0 && (
+          <span className="hidden w-8 text-right font-mono text-[10px] tabular-nums text-[var(--faint)] sm:inline">
+            {dwp > 0 ? "▲" : "▼"}
+            {Math.abs(dwp)}
+          </span>
+        )}
+        <div className="flex gap-1.5">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: typeHit ? "var(--hit)" : "var(--miss)" }}
+            title={`Pitch type — ${typeHit ? "hit" : "miss"}`}
+          />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: outcomeHit ? "var(--hit)" : "var(--miss)" }}
+            title={`Outcome — ${outcomeHit ? "hit" : "miss"}`}
+          />
+        </div>
       </div>
     </motion.div>
   );
@@ -496,16 +510,16 @@ function PitchFeed({ history }: { history: ViewPitch[] }) {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-[2rem_1fr_1fr_2.2rem] items-center gap-3 border-b border-[var(--line)] px-4 py-2 font-mono text-[9.5px] uppercase tracking-[0.16em] sm:px-5">
+          <div className="grid grid-cols-[1.9rem_1fr_1fr_auto] items-center gap-3 border-b border-[var(--line)] px-4 py-2 font-mono text-[9.5px] uppercase tracking-[0.16em] sm:px-5">
             <span className="text-[var(--faint)]">#</span>
             <span className="text-[var(--model)]">Predicted</span>
             <span className="text-[var(--text)]">Actual</span>
-            <span className="text-right text-[var(--faint)]">T O</span>
+            <span className="text-right text-[var(--faint)]">Δwp · T O</span>
           </div>
           <div className="divide-y divide-[var(--line)]">
             <AnimatePresence initial={false}>
-              {history.map((item) => (
-                <FeedRow key={item.index} item={item} />
+              {history.map((item, i) => (
+                <FeedRow key={item.index} item={item} prevWp={history[i + 1]?.homeWinProbAfter} />
               ))}
             </AnimatePresence>
           </div>
