@@ -14,7 +14,8 @@ import {
   StatusTag,
   type CardStatus,
 } from "@/components/ui/primitives";
-import { Reveal, StaggerGroup, StaggerItem, TickNumber } from "@/components/ui/motion";
+import { motion, useReducedMotion } from "motion/react";
+import { CountUp, Reveal, StaggerGroup, StaggerItem, TickNumber } from "@/components/ui/motion";
 import { PolymarketTicker } from "@/components/game/PolymarketTicker";
 import { useLiveGame } from "@/components/useLiveGame";
 import { getGames, SCHEDULE_DATE } from "@/lib/mock";
@@ -157,10 +158,10 @@ function GameCard({ game }: { game: Game }) {
   return (
     <div
       className="surface surface-hover group relative isolate flex h-full flex-col overflow-hidden"
-      style={{ backgroundImage: teamSplit(away.primaryColor, home.primaryColor, "14") }}
+      style={{ backgroundImage: teamSplit(away.primaryColor, home.primaryColor, "33") }}
     >
       <div
-        className="h-[2px] w-full opacity-80 transition-opacity duration-300 group-hover:opacity-100"
+        className="h-[3px] w-full opacity-90 transition-opacity duration-300 group-hover:opacity-100"
         style={{ background: teamRule(away, home) }}
       />
       <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-5 py-3">
@@ -251,9 +252,9 @@ function Spotlight({ game }: { game: Game }) {
   return (
     <div
       className="surface surface-hover group relative isolate overflow-hidden"
-      style={{ backgroundImage: teamSplit(away.primaryColor, home.primaryColor, "1c") }}
+      style={{ backgroundImage: teamSplit(away.primaryColor, home.primaryColor, "40") }}
     >
-      <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
+      <div className="h-[3px] w-full" style={{ background: teamRule(away, home) }} />
       <div className="flex items-center justify-between gap-2 px-5 py-3 sm:px-7">
         <div className="flex items-center gap-2.5">
           <StatusTag status={d.status} startLabel={game.startTime} />
@@ -268,7 +269,10 @@ function Spotlight({ game }: { game: Game }) {
 
       <div className="grid gap-px bg-[var(--line)] lg:grid-cols-[1.15fr_1fr]">
         {/* left — the game */}
-        <div className="bg-[var(--surface)] px-5 py-6 sm:px-7">
+        <div
+          className="bg-[var(--surface)] px-5 py-6 sm:px-7"
+          style={{ backgroundImage: `linear-gradient(155deg, ${away.primaryColor}2b 0%, transparent 58%)` }}
+        >
           <div className="flex flex-col gap-5">
             <TeamRow team={away} score={d.awayScore} show lead={d.awayScore > d.homeScore} size="lg" />
             <TeamRow team={home} score={d.homeScore} show lead={d.homeScore > d.awayScore} size="lg" />
@@ -292,7 +296,10 @@ function Spotlight({ game }: { game: Game }) {
         </div>
 
         {/* right — the model */}
-        <div className="bg-[var(--surface)] px-5 py-6 sm:px-7">
+        <div
+          className="bg-[var(--surface)] px-5 py-6 sm:px-7"
+          style={{ backgroundImage: `linear-gradient(205deg, ${home.primaryColor}2b 0%, transparent 58%)` }}
+        >
           <div className="flex items-end justify-between">
             <div>
               <Eyebrow tone="model" className="mb-2">
@@ -373,18 +380,47 @@ function StatCell({ label, value, accent }: { label: string; value: React.ReactN
 }
 
 function SectionHead({ label, count }: { label: string; count: number }) {
+  const reduce = useReducedMotion();
   return (
     <div className="mb-4 flex items-center gap-3">
       <Eyebrow tone="text">{label}</Eyebrow>
       <span className="font-mono text-[11px] tabular-nums text-[var(--faint)]">
         {String(count).padStart(2, "0")}
       </span>
-      <div className="h-px flex-1 bg-[var(--line)]" />
+      <motion.div
+        className="h-px flex-1 origin-left bg-[var(--line)]"
+        initial={reduce ? false : { scaleX: 0 }}
+        whileInView={{ scaleX: 1 }}
+        viewport={{ once: true, amount: 0.6 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      />
     </div>
   );
 }
 
+// Prominent "today" chip with a live pulse — the date as a designed component.
+function DateChip() {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="inline-flex items-center gap-2.5 rounded-full border border-[var(--line-2)] bg-[var(--surface)] px-4 py-2 shadow-[var(--shadow-card)]"
+    >
+      <span className="relative inline-flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--live)] opacity-70" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--live)]" />
+      </span>
+      <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--text)]">
+        {SCHEDULE_DATE} · 2026
+      </span>
+    </motion.div>
+  );
+}
+
 export function Schedule() {
+  const reduce = useReducedMotion();
   const games = getGames();
   const live = games.filter((g) => g.status === "live");
   const pre = games.filter((g) => g.status === "upcoming");
@@ -393,27 +429,39 @@ export function Schedule() {
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
       {/* centered hero — the aurora glows behind it (mounted at the page top) */}
-      <header className="mb-12 flex flex-col items-center pt-6 text-center sm:pt-10">
-        <Reveal className="flex flex-col items-center">
-          <Eyebrow tone="muted" className="mb-4">
-            {SCHEDULE_DATE} · 2026
-          </Eyebrow>
-          <h1 className="font-display text-[2.5rem] font-bold leading-[0.95] tracking-tight text-[var(--text)] sm:text-[3.6rem]">
-            Every pitch, predicted.
-          </h1>
-          <div className="accent-rule mt-5 w-16" />
-          <p className="mt-5 max-w-md text-[14px] leading-relaxed text-[var(--muted)] sm:text-[15px]">
-            Live win probability and the model&rsquo;s call on the next pitch, side by side with what
-            actually happens.
-          </p>
-        </Reveal>
-        <Reveal delay={0.12} className="mt-8 w-full max-w-md sm:w-auto">
-          <div className="liquid-glass flex divide-x divide-[var(--line)] overflow-hidden rounded-[var(--r-card)]">
-            <StatCell label="Live now" value={live.length} accent="var(--live)" />
-            <StatCell label="Model acc" value="73%" accent="var(--model)" />
-            <StatCell label="Pitches scored" value="2,481" />
-          </div>
-        </Reveal>
+      <header className="relative mb-12 flex flex-col items-center pt-6 text-center sm:pt-10">
+        {/* soft scrim keeps the title legible over the aurora in both modes */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse 58% 66% at 50% 38%, var(--bg) 0%, transparent 72%)",
+            opacity: 0.72,
+          }}
+        />
+        <div className="relative z-10 flex flex-col items-center">
+          <DateChip />
+          <Reveal delay={0.08}>
+            <h1 className="mt-5 font-display text-[2.5rem] font-bold leading-[0.95] tracking-tight text-[var(--text)] sm:text-[3.6rem]">
+              Every pitch, predicted.
+            </h1>
+          </Reveal>
+          <motion.div
+            aria-hidden
+            className="mt-6 h-1 w-32 origin-center rounded-full sm:w-48"
+            style={{ background: "var(--accent-grad)", boxShadow: "0 2px 18px -3px var(--live)" }}
+            initial={reduce ? false : { scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+          />
+          <Reveal delay={0.18} className="mt-8 w-full max-w-md sm:w-auto">
+            <div className="liquid-glass flex divide-x divide-[var(--line)] overflow-hidden rounded-[var(--r-card)]">
+              <StatCell label="Live now" value={<CountUp to={live.length} />} accent="var(--live)" />
+              <StatCell label="Model acc" value={<CountUp to={73} suffix="%" />} accent="var(--model)" />
+              <StatCell label="Pitches scored" value={<CountUp to={2481} comma />} />
+            </div>
+          </Reveal>
+        </div>
       </header>
 
       {live.length > 0 && (

@@ -105,10 +105,10 @@ function Scoreboard({
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        style={{ background: teamSplit(away.primaryColor, home.primaryColor, "1f") }}
+        style={{ background: teamSplit(away.primaryColor, home.primaryColor, "40") }}
       />
       <div className="relative">
-        <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
+        <div className="h-[3px] w-full" style={{ background: teamRule(away, home) }} />
 
         {/* centered status + inning */}
         <div className="flex items-center justify-center gap-3 px-5 pt-4 sm:px-6">
@@ -745,10 +745,10 @@ function PreGameView({ game }: { game: Game }) {
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
-          style={{ background: teamSplit(away.primaryColor, home.primaryColor, "1f") }}
+          style={{ background: teamSplit(away.primaryColor, home.primaryColor, "40") }}
         />
         <div className="relative">
-          <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
+          <div className="h-[3px] w-full" style={{ background: teamRule(away, home) }} />
           <div className="flex items-center justify-center gap-3 px-5 py-5 sm:gap-6 sm:px-6">
             <div className="flex items-center gap-2.5">
               <Monogram team={away} size="md" />

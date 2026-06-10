@@ -10,7 +10,7 @@ import { Aurora } from "./Aurora";
 function readStops(): [string, string, string] {
   const s = getComputedStyle(document.documentElement);
   const g = (n: string, f: string) => s.getPropertyValue(n).trim() || f;
-  return [g("--aurora-1", "#ff4b51"), g("--aurora-2", "#ffffff"), g("--aurora-3", "#ff2d4a")];
+  return [g("--aurora-1", "#ff4b51"), g("--aurora-2", "#4d8bff"), g("--aurora-3", "#ff3b62")];
 }
 
 let cache: [string, string, string] | null = null;

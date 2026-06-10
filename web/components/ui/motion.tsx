@@ -2,7 +2,16 @@
 
 /* DiamondAI — small, reduced-motion-aware animation helpers (Motion / Framer).
    Quiet, purposeful motion only — entrances, staggers, and value tick-overs. */
-import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
+import {
+  animate,
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type Variants,
+} from "motion/react";
+import { useEffect } from "react";
 import { cx } from "@/lib/ui";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -78,6 +87,35 @@ export function StaggerItem({
       {children}
     </motion.div>
   );
+}
+
+// Counts up from 0 to `to` once on mount (e.g. hero stat tallies).
+export function CountUp({
+  to,
+  suffix = "",
+  comma = false,
+  className,
+}: {
+  to: number;
+  suffix?: string;
+  comma?: boolean;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  const mv = useMotionValue(0);
+  const text = useTransform(mv, (x) => {
+    const n = Math.round(x);
+    return (comma ? n.toLocaleString("en-US") : String(n)) + suffix;
+  });
+  useEffect(() => {
+    if (reduce) {
+      mv.set(to);
+      return;
+    }
+    const controls = animate(mv, to, { duration: 1.1, ease: [0.22, 1, 0.36, 1] });
+    return () => controls.stop();
+  }, [to, reduce, mv]);
+  return <motion.span className={className}>{text}</motion.span>;
 }
 
 // Number that pops when its value changes (scores, win-prob, accuracy).
