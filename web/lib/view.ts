@@ -19,15 +19,26 @@ import {
   type Team,
 } from "./types";
 
-// ---- teams: enrich the contract `Team` with brand color + logo -------------
+// ---- teams: enrich the contract `Team` with brand color + logo paths -------
 export interface ViewTeam extends Team {
   primaryColor: string;
-  logoPath: string;
+  /** white logo for dark backgrounds */
+  logoDark: string;
+  /** colored logo for light backgrounds */
+  logoLight: string;
+  hasLogo: boolean;
 }
 
 export function viewTeam(t: Team): ViewTeam {
-  const meta = TEAM_META[t.id] ?? { primaryColor: "#8a8a8f", logoPath: "" };
-  return { ...t, ...meta };
+  const meta = TEAM_META[t.id];
+  const has = !!meta;
+  return {
+    ...t,
+    primaryColor: meta?.primaryColor ?? "#8a8a8f",
+    logoDark: has ? `/logos/mlb/dark/${t.id}.svg` : "",
+    logoLight: has ? `/logos/mlb/light/${t.id}.svg` : "",
+    hasLogo: has,
+  };
 }
 
 // ---- strike zone (catcher's view: col 0 = inside to RHB, row 0 = top) ------

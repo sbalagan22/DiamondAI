@@ -1,7 +1,9 @@
 "use client";
 
 /* DiamondAI — Live Game view, ported from design/game.jsx and driven by the
-   mock game script via a predict -> reveal simulated ticker. */
+   mock game script via a predict -> reveal simulated ticker. Flat surfaces, a
+   centered scoreboard, model-blue accents on key numbers, and a compact
+   Polymarket reference folded into the win-probability panel. */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,16 +25,34 @@ import {
 } from "@/components/ui/primitives";
 import { getGame } from "@/lib/mock";
 import type { Game } from "@/lib/types";
-import { cx, pct } from "@/lib/ui";
+import { cx, pct, teamSplit } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
 import { ResultFlash, StrikeoutStamp } from "./moments";
-import { PolymarketPanel } from "./PolymarketPanel";
+import { PolymarketTicker } from "./PolymarketTicker";
 
 const PREDICT_MS = 3400;
 const REVEAL_MS = 2800;
 type Phase = "predicting" | "revealed";
 
-// ---- Scoreboard ------------------------------------------------------------
+const teamRule = (a: ViewTeam, b: ViewTeam) =>
+  `linear-gradient(90deg, ${a.primaryColor}, ${b.primaryColor})`;
+const marketHint = (g: Game) => `${g.home.city} ${g.home.name}`;
+
+// Bigger on desktop, comfortable on mobile.
+function ScoreLogo({ team }: { team: ViewTeam }) {
+  return (
+    <>
+      <span className="sm:hidden">
+        <Monogram team={team} size="md" />
+      </span>
+      <span className="hidden sm:inline-flex">
+        <Monogram team={team} size="lg" />
+      </span>
+    </>
+  );
+}
+
+// ---- Scoreboard — centered, symmetric matchup ------------------------------
 function Scoreboard({
   away,
   home,
@@ -64,43 +84,17 @@ function Scoreboard({
   const count = phase === "revealed" ? pitch.countAfter : pitch.countBefore;
   const inningLabel = status === "final" ? "Final" : `${half} ${inning}`;
   return (
-    <Panel className="overflow-hidden">
-      <div className="accent-rule" />
-      <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-3 sm:gap-5">
-          <div className="flex items-center gap-2.5">
-            <Monogram team={away} size="md" />
-            <div className="leading-tight">
-              <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)]">
-                {away.name}
-              </div>
-              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
-                {away.city}
-              </div>
-            </div>
-            <TickNumber
-              value={awayScore}
-              className="ml-1 font-mono text-[32px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)]"
-            />
-          </div>
-          <span className="text-[var(--faint)]">–</span>
-          <div className="flex items-center gap-2.5">
-            <TickNumber
-              value={homeScore}
-              className="mr-1 font-mono text-[32px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)]"
-            />
-            <div className="text-right leading-tight">
-              <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)]">
-                {home.name}
-              </div>
-              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
-                {home.city}
-              </div>
-            </div>
-            <Monogram team={home} size="md" />
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
+    <Panel className="relative overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: teamSplit(away.primaryColor, home.primaryColor, "1f") }}
+      />
+      <div className="relative">
+        <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
+
+        {/* centered status + inning */}
+        <div className="flex items-center justify-center gap-3 px-5 pt-4 sm:px-6">
           <StatusTag status={status} startLabel="" />
           <span className="relative inline-flex h-4 items-center overflow-hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
             <AnimatePresence mode="popLayout" initial={false}>
@@ -116,39 +110,79 @@ function Scoreboard({
             </AnimatePresence>
           </span>
         </div>
-      </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--line)] px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-6 sm:gap-8">
-          <div className="flex items-baseline gap-1.5">
-            <span className="font-mono text-[26px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
-              {count.balls}
-            </span>
-            <span className="text-[var(--faint)]">–</span>
-            <span className="font-mono text-[26px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
-              {count.strikes}
-            </span>
-            <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
-              count
-            </span>
+        {/* centered matchup: away · score – score · home */}
+        <div className="flex items-center justify-center gap-3 px-4 py-4 sm:gap-6 sm:px-6">
+          <div className="flex min-w-0 items-center justify-end gap-2.5">
+            <div className="min-w-0 text-right leading-tight">
+              <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)] sm:text-[17px]">
+                {away.name}
+              </div>
+              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
+                {away.city}
+              </div>
+            </div>
+            <ScoreLogo team={away} />
           </div>
-          <CountPips count={count} outs={pitch.outs} />
-          <Bases bases={pitch.bases} />
+
+          <div className="flex shrink-0 items-center gap-2.5 sm:gap-3.5">
+            <TickNumber
+              value={awayScore}
+              className="font-mono text-[34px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)] sm:text-[40px]"
+            />
+            <span className="font-mono text-[20px] text-[var(--faint)]">–</span>
+            <TickNumber
+              value={homeScore}
+              className="font-mono text-[34px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)] sm:text-[40px]"
+            />
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2.5">
+            <ScoreLogo team={home} />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)] sm:text-[17px]">
+                {home.name}
+              </div>
+              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
+                {home.city}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)] sm:inline">
-            {venue}
-          </span>
-          {onTogglePause && (
-            <button
-              type="button"
-              onClick={onTogglePause}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--glass-border)] bg-[var(--fill)] px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] transition-colors hover:border-[var(--glass-border-hi)] hover:text-[var(--text)] focus:outline-none focus-visible:border-[var(--glass-border-hi)]"
-              aria-pressed={paused}
-            >
-              {paused ? "▶ Resume" : "❚❚ Pause"}
-            </button>
-          )}
+
+        {/* situational band */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--line)] px-5 py-3.5 sm:px-6">
+          <div className="flex items-center gap-6 sm:gap-8">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
+                {count.balls}
+              </span>
+              <span className="text-[var(--faint)]">–</span>
+              <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
+                {count.strikes}
+              </span>
+              <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--faint)]">
+                count
+              </span>
+            </div>
+            <CountPips count={count} outs={pitch.outs} />
+            <Bases bases={pitch.bases} />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)] sm:inline">
+              {venue}
+            </span>
+            {onTogglePause && (
+              <button
+                type="button"
+                onClick={onTogglePause}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--line-2)] bg-[var(--fill)] px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)] transition-colors hover:text-[var(--text)] focus:outline-none focus-visible:border-[var(--line-2)]"
+                aria-pressed={paused}
+              >
+                {paused ? "▶ Resume" : "❚❚ Pause"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </Panel>
@@ -205,14 +239,14 @@ function PredictionHero({
           )
         }
       />
-      <div className="border-b border-[var(--line)] px-5 py-3 text-[13px] text-[var(--muted)]">
+      <div className="border-b border-[var(--line)] px-5 py-2.5 text-[13px] text-[var(--muted)]">
         Now facing <span className="font-semibold text-[var(--text)]">{batterName}</span>
       </div>
 
-      <div className="grid gap-6 px-5 py-8 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-0">
+      <div className="grid gap-6 px-5 py-7 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-0">
         {/* PREDICTED */}
         <CallColumn label="Model predicts" tone="model" className="sm:pr-8">
-          <div className="font-display text-[2.3rem] font-bold leading-none tracking-tight text-[var(--text)] sm:text-[2.8rem]">
+          <div className="font-display text-[2.2rem] font-bold leading-none tracking-tight text-[var(--text)] sm:text-[2.7rem]">
             {p.pitchType}
           </div>
           <div className="mt-1 text-sm text-[var(--muted)]">{p.zone.label}</div>
@@ -261,20 +295,20 @@ function PredictionHero({
             <ResultFlash key={pitch.index} hit={pitch.outcomeHit}>
               <div className="min-h-[8rem]">
                 <div className="flex items-baseline gap-2.5">
-                <span className="font-display text-[2.3rem] font-bold leading-none tracking-tight text-[var(--text)] sm:text-[2.8rem]">
-                  {a.pitchType}
-                </span>
-                <span className="font-mono text-sm font-semibold tabular-nums text-[var(--muted)]">
-                  {a.velo.toFixed(1)}
-                </span>
-              </div>
-              <div className="mt-1 text-sm text-[var(--muted)]">{a.zone.label}</div>
-              <div className="mt-2.5 text-sm text-[var(--muted)]">
-                Result <span className="font-semibold text-[var(--text)]">{a.outcome}</span>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Verdict hit={pitch.typeHit} label="Type" />
-                <Verdict hit={pitch.outcomeHit} label="Outcome" />
+                  <span className="font-display text-[2.2rem] font-bold leading-none tracking-tight text-[var(--text)] sm:text-[2.7rem]">
+                    {a.pitchType}
+                  </span>
+                  <span className="font-mono text-sm font-semibold tabular-nums text-[var(--muted)]">
+                    {a.velo.toFixed(1)}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm text-[var(--muted)]">{a.zone.label}</div>
+                <div className="mt-2.5 text-sm text-[var(--muted)]">
+                  Result <span className="font-semibold text-[var(--text)]">{a.outcome}</span>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Verdict hit={pitch.typeHit} label="Type" />
+                  <Verdict hit={pitch.outcomeHit} label="Outcome" />
                 </div>
               </div>
             </ResultFlash>
@@ -283,7 +317,7 @@ function PredictionHero({
       </div>
 
       {revealed && pitch.abEnd && (
-        <div className="border-t border-[var(--line)] bg-[var(--fill)] px-5 py-3.5 text-sm text-[var(--muted)]">
+        <div className="border-t border-[var(--line)] bg-[var(--fill)] px-5 py-3 text-sm text-[var(--muted)]">
           <span className="font-semibold text-[var(--text)]">At-bat over.</span> {pitch.abEnd}
         </div>
       )}
@@ -330,7 +364,7 @@ function Matchup({ game, pitch }: { game: Game; pitch: ViewPitch }) {
   return (
     <Panel>
       <PanelHead label="Matchup" />
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4 px-5 py-5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4 px-5 py-4">
         <PersonCard role="Pitching" name={pitch.pitcher} teamAbbr={fieldingSide.abbr} line={pitcherLine} />
         <span className="self-center font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
           vs
@@ -347,15 +381,19 @@ function Matchup({ game, pitch }: { game: Game; pitch: ViewPitch }) {
   );
 }
 
-// ---- Win probability -------------------------------------------------------
+// ---- Win probability (model) + compact Polymarket (market) reference -------
 function WinProbPanel({
   away,
   home,
   series,
+  marketHintText,
+  showMarket,
 }: {
   away: ViewTeam;
   home: ViewTeam;
   series: number[];
+  marketHintText: string;
+  showMarket: boolean;
 }) {
   const homeP = series[series.length - 1];
   const prev = series.length > 1 ? series[series.length - 2] : homeP;
@@ -369,11 +407,11 @@ function WinProbPanel({
 
   return (
     <Panel>
-      <PanelHead label="Win probability" right="Live model" />
-      <div className="px-5 py-5">
+      <PanelHead label="Win probability" right="Live model" tone="model" />
+      <div className="px-5 py-4">
         <WinProbBar away={away} home={home} homeP={homeP} />
 
-        <div className="mt-5 flex items-end justify-between border-t border-[var(--line)] pt-5">
+        <div className="mt-4 flex items-end justify-between border-t border-[var(--line)] pt-4">
           <div className="flex items-center gap-2.5">
             <Monogram team={fav} size="sm" />
             <div>
@@ -381,7 +419,7 @@ function WinProbPanel({
                 {fav.name} favored
               </div>
               <div className="text-[13px] text-[var(--muted)]">
-                <span className="font-semibold text-[var(--text)]">{pct(favP)}%</span> to win it
+                <span className="font-semibold text-[var(--model)]">{pct(favP)}%</span> to win it
               </div>
             </div>
           </div>
@@ -401,13 +439,19 @@ function WinProbPanel({
             <span className="font-normal text-[var(--faint)]">pts {home.abbr}</span>
           </div>
         </div>
-        <div className="mt-5 h-12">
+        <div className="mt-4 h-12">
           <WinProbChart series={series} />
         </div>
         <div className="mt-2 flex justify-between font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--faint)]">
           <span>1st pitch</span>
           <span>now</span>
         </div>
+
+        {showMarket && (
+          <div className="mt-4 border-t border-[var(--line)] pt-3.5">
+            <PolymarketTicker teamHint={marketHintText} poll />
+          </div>
+        )}
       </div>
     </Panel>
   );
@@ -417,7 +461,7 @@ function WinProbPanel({
 function StatBlock({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div>
-      <div className="font-mono text-[26px] font-semibold leading-none tabular-nums tracking-[-0.01em] text-[var(--text)]">
+      <div className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.01em] text-[var(--text)]">
         {value}
       </div>
       <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
@@ -435,10 +479,10 @@ function AccuracyPanel({ history }: { history: ViewPitch[] }) {
   const acc = n ? Math.round((outcomeHits / n) * 100) : 0;
   return (
     <Panel>
-      <PanelHead label="Model accuracy" right={`${String(n).padStart(2, "0")} tracked`} />
-      <div className="px-5 py-5">
+      <PanelHead label="Model accuracy" right={`${String(n).padStart(2, "0")} tracked`} tone="model" />
+      <div className="px-5 py-4">
         <div className="flex items-end gap-3">
-          <span className="font-mono text-[3.6rem] font-semibold leading-[0.8] tabular-nums tracking-[-0.03em] text-[var(--text)]">
+          <span className="font-mono text-[3.4rem] font-semibold leading-[0.8] tabular-nums tracking-[-0.03em] text-[var(--model)]">
             {n ? acc : "–"}
             {n ? <span className="text-2xl text-[var(--muted)]">%</span> : null}
           </span>
@@ -448,7 +492,7 @@ function AccuracyPanel({ history }: { history: ViewPitch[] }) {
             correct
           </span>
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-4 border-t border-[var(--line)] pt-5">
+        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-[var(--line)] pt-4">
           <StatBlock label="Pitch type" value={n ? `${Math.round((typeHits / n) * 100)}%` : "—"} sub={`${typeHits}/${n}`} />
           <StatBlock label="Outcome" value={n ? `${acc}%` : "—"} sub={`${outcomeHits}/${n}`} />
         </div>
@@ -462,7 +506,6 @@ function FeedRow({ item, prevWp }: { item: ViewPitch; prevWp?: number }) {
   const reduce = useReducedMotion();
   const { predicted: p, actual: a, typeHit, outcomeHit } = item;
   const dwp = prevWp != null ? Math.round((item.homeWinProbAfter - prevWp) * 100) : 0;
-  // Newly-resolved rows flash their outcome color, then settle (premium "pulse").
   const pulse = outcomeHit ? "rgba(63,185,80,0.20)" : "rgba(255,91,97,0.20)";
   return (
     <motion.div
@@ -584,7 +627,7 @@ function GameLayout({
   const awayScore = revealed ? current.awayScoreAfter : current.awayScore;
   const homeScore = revealed ? current.homeScoreAfter : current.homeScore;
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6 sm:pt-6">
+    <main className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6">
       <Reveal>
         <Scoreboard
           away={away}
@@ -600,18 +643,23 @@ function GameLayout({
           paused={paused}
           onTogglePause={onTogglePause}
         />
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1.55fr_1fr]">
-          <div className="flex flex-col gap-5">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.55fr_1fr]">
+          <div className="flex flex-col gap-4">
             <PredictionHero pitch={current} phase={phase} batterName={current.batter} />
             <Matchup game={game} pitch={current} />
           </div>
-          <div className="flex flex-col gap-5">
-            <WinProbPanel away={away} home={home} series={series} />
-            <PolymarketPanel teamHint={`${game.home.city} ${game.home.name}`} />
+          <div className="flex flex-col gap-4">
+            <WinProbPanel
+              away={away}
+              home={home}
+              series={series}
+              marketHintText={marketHint(game)}
+              showMarket={status !== "final"}
+            />
             <AccuracyPanel history={history} />
           </div>
         </div>
-        <div className="mt-5">
+        <div className="mt-4">
           <PitchFeed history={history} />
         </div>
       </Reveal>
@@ -697,52 +745,80 @@ function PreGameView({ game }: { game: Game }) {
   const away = viewTeam(game.away);
   const home = viewTeam(game.home);
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6 sm:pt-6">
-      <Panel className="overflow-hidden">
-        <div className="accent-rule" />
-        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Monogram team={away} size="md" />
-            <span className="font-mono text-[15px] uppercase tracking-[0.12em] text-[var(--muted)]">
+    <main className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6">
+      <Panel className="relative overflow-hidden">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: teamSplit(away.primaryColor, home.primaryColor, "1f") }}
+        />
+        <div className="relative">
+          <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
+          <div className="flex items-center justify-center gap-4 px-5 py-5 sm:gap-6 sm:px-6">
+            <div className="flex items-center gap-2.5">
+              <Monogram team={away} size="md" />
+              <span className="text-[15px] font-semibold text-[var(--text)] sm:text-[17px]">
+                {away.name}
+              </span>
+            </div>
+            <span className="font-mono text-[12px] uppercase tracking-[0.16em] text-[var(--faint)]">
               at
             </span>
-            <Monogram team={home} size="md" />
+            <div className="flex items-center gap-2.5">
+              <span className="text-[15px] font-semibold text-[var(--text)] sm:text-[17px]">
+                {home.name}
+              </span>
+              <Monogram team={home} size="md" />
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex items-center justify-center border-t border-[var(--line)] px-5 py-2.5">
             <StatusTag status="upcoming" startLabel={game.startTime} />
           </div>
         </div>
-        <div className="border-t border-[var(--line)] px-5 py-6 sm:px-6">
-          <Eyebrow tone="model" className="mb-3">
-            Pregame model read
-          </Eyebrow>
-          <WinProbBar away={away} home={home} homeP={game.pregameHomeWinProb} />
-          <div className="mt-5 grid gap-4 border-t border-[var(--line)] pt-5 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <Eyebrow>Probable · {away.abbr}</Eyebrow>
-              <div className="text-[15px] font-semibold text-[var(--text)]">
-                {game.probables.away.name}
-              </div>
-              <div className="font-mono text-[11px] tabular-nums text-[var(--muted)]">
-                {game.probables.away.line}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1 sm:items-end sm:text-right">
-              <Eyebrow>Probable · {home.abbr}</Eyebrow>
-              <div className="text-[15px] font-semibold text-[var(--text)]">
-                {game.probables.home.name}
-              </div>
-              <div className="font-mono text-[11px] tabular-nums text-[var(--muted)]">
-                {game.probables.home.line}
-              </div>
-            </div>
-          </div>
-          <p className="mt-6 max-w-md text-[13px] leading-relaxed text-[var(--muted)]">
-            First pitch at {game.startTime}. The pitch-by-pitch model read begins once the game
-            goes live.
-          </p>
-        </div>
       </Panel>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.55fr_1fr]">
+        <Panel className="overflow-hidden">
+          <PanelHead label="Pregame model read" tone="model" />
+          <div className="px-5 py-5">
+            <WinProbBar away={away} home={home} homeP={game.pregameHomeWinProb} />
+            <div className="mt-5 grid gap-4 border-t border-[var(--line)] pt-5 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <Eyebrow>Probable · {away.abbr}</Eyebrow>
+                <div className="text-[15px] font-semibold text-[var(--text)]">
+                  {game.probables.away.name}
+                </div>
+                <div className="font-mono text-[11px] tabular-nums text-[var(--muted)]">
+                  {game.probables.away.line}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1 sm:items-end sm:text-right">
+                <Eyebrow>Probable · {home.abbr}</Eyebrow>
+                <div className="text-[15px] font-semibold text-[var(--text)]">
+                  {game.probables.home.name}
+                </div>
+                <div className="font-mono text-[11px] tabular-nums text-[var(--muted)]">
+                  {game.probables.home.line}
+                </div>
+              </div>
+            </div>
+            <p className="mt-5 max-w-md text-[13px] leading-relaxed text-[var(--muted)]">
+              First pitch at {game.startTime}. The pitch-by-pitch read begins once the game goes live.
+            </p>
+          </div>
+        </Panel>
+
+        <Panel>
+          <PanelHead label="Market reference" right="Polymarket" />
+          <div className="px-5 py-5">
+            <PolymarketTicker teamHint={marketHint(game)} poll />
+            <p className="mt-4 text-[12px] leading-relaxed text-[var(--faint)]">
+              Live Polymarket odds for a current MLB game — a reference to compare against the
+              model&rsquo;s read.
+            </p>
+          </div>
+        </Panel>
+      </div>
     </main>
   );
 }

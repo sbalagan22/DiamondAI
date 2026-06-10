@@ -1,7 +1,8 @@
 "use client";
 
-/* DiamondAI — Schedule (home) screen, ported from design/schedule.jsx and
-   bound to the mock slate + the simulated live ticker. */
+/* DiamondAI — Schedule (home). Flat solid cards over the aurora backdrop, a
+   centered FluidGlass hero, per-team gradient accents, and a compact Polymarket
+   reference on upcoming/live games. Bound to the mock slate + simulated ticker. */
 import Link from "next/link";
 import {
   Bases,
@@ -13,13 +14,18 @@ import {
   type CardStatus,
 } from "@/components/ui/primitives";
 import { Reveal, StaggerGroup, StaggerItem, TickNumber } from "@/components/ui/motion";
+import { FluidGlassHero } from "@/components/visual/FluidGlassHero";
+import { PolymarketTicker } from "@/components/game/PolymarketTicker";
 import { useLiveGame } from "@/components/useLiveGame";
 import { getGames, SCHEDULE_DATE } from "@/lib/mock";
 import type { Game } from "@/lib/types";
-import { cx, pct } from "@/lib/ui";
+import { cx, pct, teamSplit } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
 
 const gameUrl = (id: string) => `/game/${id}`;
+const teamHint = (g: Game) => `${g.home.city} ${g.home.name}`;
+const teamRule = (a: ViewTeam, b: ViewTeam) =>
+  `linear-gradient(90deg, ${a.primaryColor}, ${b.primaryColor})`;
 
 interface Display {
   status: CardStatus;
@@ -34,7 +40,7 @@ interface Display {
   bases: { first: boolean; second: boolean; third: boolean };
 }
 
-/** Normalize a game's live cursor into the fields the design's cards read. */
+/** Normalize a game's live cursor into the fields the cards read. */
 function useDisplay(game: Game): Display {
   const ls = useLiveGame(game);
   const status = ls.status;
@@ -68,21 +74,24 @@ function TeamRow({
   show,
   lead,
   dim,
+  size = "md",
 }: {
   team: ViewTeam;
   score: number;
   show: boolean;
   lead?: boolean;
   dim?: boolean;
+  size?: "md" | "lg";
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <Monogram team={team} size="md" />
+        <Monogram team={team} size={size} />
         <div className="min-w-0 flex-1 leading-tight">
           <div
             className={cx(
-              "truncate text-[16px] font-semibold tracking-[-0.01em]",
+              "truncate font-semibold tracking-[-0.01em]",
+              size === "lg" ? "text-[19px]" : "text-[16px]",
               dim ? "text-[var(--muted)]" : "text-[var(--text)]",
             )}
           >
@@ -101,7 +110,8 @@ function TeamRow({
           <TickNumber
             value={score}
             className={cx(
-              "shrink-0 font-mono text-[30px] font-semibold leading-none tabular-nums tracking-[-0.03em]",
+              "shrink-0 font-mono font-semibold leading-none tabular-nums tracking-[-0.03em]",
+              size === "lg" ? "text-[34px]" : "text-[30px]",
               dim ? "text-[var(--faint)]" : "text-[var(--text)]",
             )}
           />
@@ -115,47 +125,32 @@ function GameCard({ game }: { game: Game }) {
   const d = useDisplay(game);
   const away = viewTeam(game.away);
   const home = viewTeam(game.home);
-  const live = d.status === "live";
   const final = d.status === "final";
-  const showScore = live || final;
+  const upcoming = d.status === "upcoming";
+  const showScore = final;
   const leadAway = showScore && d.awayScore > d.homeScore;
   const leadHome = showScore && d.homeScore > d.awayScore;
   const homePctn = pct(d.homeWinProb);
+  const leanTeam = homePctn >= 50 ? home.abbr : away.abbr;
+  const leanPct = Math.max(homePctn, 100 - homePctn);
 
-  const inner = (
-    <>
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-5 py-3.5">
-        <div className="flex shrink-0 items-center gap-2.5">
-          <StatusTag status={d.status} startLabel={game.startTime} />
-          {live && (
-            <span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
-              {d.half} {d.inning}
-            </span>
-          )}
-        </div>
+  return (
+    <div className="surface flex h-full flex-col overflow-hidden">
+      <div className="h-[2px] w-full" style={{ background: teamRule(away, home), opacity: 0.85 }} />
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-5 py-3">
+        <StatusTag status={d.status} startLabel={game.startTime} />
         <span className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
           {game.venue}
         </span>
       </div>
 
-      <div className="flex flex-col gap-4 px-5 py-5">
+      <div className="flex flex-col gap-3.5 px-5 py-4">
         <TeamRow team={away} score={d.awayScore} show={showScore} lead={leadAway} dim={final && leadHome} />
         <TeamRow team={home} score={d.homeScore} show={showScore} lead={leadHome} dim={final && leadAway} />
       </div>
 
-      {live && (
-        <div className="border-t border-[var(--line)] px-5 py-4">
-          <div className="mb-2.5 flex items-center justify-between">
-            <Eyebrow>Win probability</Eyebrow>
-            <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--model)] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              Watch live →
-            </span>
-          </div>
-          <LeanBar homeWinProb={d.homeWinProb} away={away} home={home} />
-        </div>
-      )}
-      {d.status === "upcoming" && (
-        <div className="flex items-center justify-between border-t border-[var(--line)] px-5 py-4">
+      {upcoming && (
+        <div className="flex items-center justify-between border-t border-[var(--line)] px-5 py-3.5">
           <div className="flex flex-col gap-0.5">
             <Eyebrow>First pitch</Eyebrow>
             <span className="font-mono text-[13px] tabular-nums text-[var(--text)]">
@@ -163,15 +158,15 @@ function GameCard({ game }: { game: Game }) {
             </span>
           </div>
           <div className="flex flex-col items-end gap-0.5">
-            <Eyebrow>Model lean</Eyebrow>
-            <span className="whitespace-nowrap font-mono text-[13px] tabular-nums text-[var(--muted)]">
-              {homePctn >= 50 ? home.abbr : away.abbr} {Math.max(homePctn, 100 - homePctn)}%
+            <Eyebrow tone="model">Model lean</Eyebrow>
+            <span className="whitespace-nowrap font-mono text-[14px] font-semibold tabular-nums text-[var(--model)]">
+              {leanTeam} {leanPct}%
             </span>
           </div>
         </div>
       )}
       {final && (
-        <div className="flex items-center justify-between border-t border-[var(--line)] px-5 py-4">
+        <div className="flex items-center justify-between border-t border-[var(--line)] px-5 py-3.5">
           <Eyebrow>Result</Eyebrow>
           <span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
             {(d.homeScore > d.awayScore ? home : away).abbr} win ·{" "}
@@ -179,28 +174,19 @@ function GameCard({ game }: { game: Game }) {
           </span>
         </div>
       )}
-    </>
-  );
 
-  if (live) {
-    return (
-      <Link
-        href={gameUrl(game.id)}
-        aria-label={`Open live game: ${away.name} at ${home.name}`}
-        className="group glass-panel glass-hover flex h-full flex-col overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)]"
-      >
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <div className="glass-panel flex h-full flex-col overflow-hidden opacity-[0.92]">{inner}</div>
+      {upcoming && (
+        <div className="mt-auto border-t border-[var(--line)] px-5 py-3.5">
+          <PolymarketTicker teamHint={teamHint(game)} />
+        </div>
+      )}
+    </div>
   );
 }
 
 function MiniCall({ p }: { p: ViewPitch }) {
   return (
-    <div className="flex items-center gap-3 py-2">
+    <div className="flex items-center gap-3 py-1.5">
       <span className="w-6 shrink-0 font-mono text-[11px] tabular-nums text-[var(--faint)]">
         {String(p.index + 1).padStart(2, "0")}
       </span>
@@ -236,98 +222,109 @@ function Spotlight({ game }: { game: Game }) {
   return (
     <Link
       href={gameUrl(game.id)}
-      aria-label={`Open featured live game: ${away.name} at ${home.name}`}
-      className="group glass-panel glass-hover block overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)]"
+      aria-label={`Open live game: ${away.name} at ${home.name}`}
+      className="surface surface-hover group relative block overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)]"
     >
-      <div className="accent-rule" />
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-5 py-3.5 sm:px-7">
-        <div className="flex items-center gap-2.5">
-          <StatusTag status={d.status} startLabel={game.startTime} />
-          <span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
-            Featured · {d.half} {d.inning}
-          </span>
-        </div>
-        <span className="hidden whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)] sm:inline">
-          {game.venue}
-        </span>
-      </div>
-
-      <div className="grid gap-px bg-[var(--line)] lg:grid-cols-[1.15fr_1fr]">
-        {/* left — the game */}
-        <div className="bg-transparent px-5 py-6 sm:px-7">
-          <div className="flex flex-col gap-5">
-            <TeamRow team={away} score={d.awayScore} show lead={d.awayScore > d.homeScore} />
-            <TeamRow team={home} score={d.homeScore} show lead={d.homeScore > d.awayScore} />
-          </div>
-          <div className="mt-6 flex items-center gap-7 border-t border-[var(--line)] pt-5">
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
-                {d.count.balls}
-              </span>
-              <span className="text-[var(--faint)]">–</span>
-              <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
-                {d.count.strikes}
-              </span>
-              <span className="ml-1.5 font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--faint)]">
-                count
-              </span>
-            </div>
-            <CountPips count={d.count} outs={d.outs} />
-            <Bases bases={d.bases} />
-          </div>
-        </div>
-
-        {/* right — the model */}
-        <div className="bg-transparent px-5 py-6 sm:px-7">
-          <div className="flex items-end justify-between">
-            <div>
-              <Eyebrow tone="model" className="mb-2">
-                Model · win prob
-              </Eyebrow>
-              <div className="flex items-center gap-2.5">
-                <Monogram team={fav} size="sm" />
-                <span className="font-mono text-[2.6rem] font-semibold leading-[0.85] tabular-nums tracking-[-0.03em] text-[var(--text)]">
-                  {favP}
-                  <span className="text-xl text-[var(--muted)]">%</span>
-                </span>
-              </div>
-            </div>
-            <span className="mb-1 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
-              {fav.abbr} favored
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: teamSplit(away.primaryColor, home.primaryColor, "1f") }}
+      />
+      <div className="relative">
+        <div className="h-[2px] w-full" style={{ background: teamRule(away, home) }} />
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-5 py-3 sm:px-7">
+          <div className="flex items-center gap-2.5">
+            <StatusTag status={d.status} startLabel={game.startTime} />
+            <span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
+              {d.half} {d.inning}
             </span>
           </div>
-          <div className="mt-4">
-            <LeanBar homeWinProb={d.homeWinProb} away={away} home={home} />
+          <span className="hidden whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)] sm:inline">
+            {game.venue}
+          </span>
+        </div>
+
+        <div className="grid gap-px bg-[var(--line)] lg:grid-cols-[1.15fr_1fr]">
+          {/* left — the game */}
+          <div className="bg-[var(--surface)] px-5 py-6 sm:px-7">
+            <div className="flex flex-col gap-5">
+              <TeamRow team={away} score={d.awayScore} show lead={d.awayScore > d.homeScore} size="lg" />
+              <TeamRow team={home} score={d.homeScore} show lead={d.homeScore > d.awayScore} size="lg" />
+            </div>
+            <div className="mt-6 flex items-center gap-7 border-t border-[var(--line)] pt-5">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
+                  {d.count.balls}
+                </span>
+                <span className="text-[var(--faint)]">–</span>
+                <span className="font-mono text-[24px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-[var(--text)]">
+                  {d.count.strikes}
+                </span>
+                <span className="ml-1.5 font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--faint)]">
+                  count
+                </span>
+              </div>
+              <CountPips count={d.count} outs={d.outs} />
+              <Bases bases={d.bases} />
+            </div>
           </div>
 
-          <div className="mt-5 border-t border-[var(--line)] pt-3">
-            <div className="mb-1 flex items-center justify-between">
-              <Eyebrow>Latest calls</Eyebrow>
-              <span className="flex items-center gap-2.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--faint)]">
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--hit)" }} />
-                  hit
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--miss)" }} />
-                  miss
-                </span>
+          {/* right — the model */}
+          <div className="bg-[var(--surface)] px-5 py-6 sm:px-7">
+            <div className="flex items-end justify-between">
+              <div>
+                <Eyebrow tone="model" className="mb-2">
+                  Model · win prob
+                </Eyebrow>
+                <div className="flex items-center gap-2.5">
+                  <Monogram team={fav} size="sm" />
+                  <span className="font-mono text-[2.6rem] font-semibold leading-[0.85] tabular-nums tracking-[-0.03em] text-[var(--model)]">
+                    {favP}
+                    <span className="text-xl text-[var(--muted)]">%</span>
+                  </span>
+                </div>
+              </div>
+              <span className="mb-1 whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--faint)]">
+                {fav.abbr} favored
               </span>
             </div>
-            <div className="divide-y divide-[var(--line)]">
-              {d.recent.length > 0 ? (
-                d.recent.map((p) => <MiniCall key={p.index} p={p} />)
-              ) : (
-                <div className="py-3 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
-                  Awaiting first pitch…
-                </div>
-              )}
+            <div className="mt-4">
+              <LeanBar homeWinProb={d.homeWinProb} away={away} home={home} />
             </div>
-          </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[var(--glass-border)] bg-[var(--fill)] py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text)] transition-[background-color,border-color] group-hover:border-[var(--glass-border-hi)] group-hover:bg-[var(--fill-hi)]">
-            Open live game{" "}
-            <span className="transition-transform group-hover:translate-x-0.5">→</span>
+            <div className="mt-4 border-t border-[var(--line)] pt-3">
+              <PolymarketTicker teamHint={teamHint(game)} poll />
+            </div>
+
+            <div className="mt-4 border-t border-[var(--line)] pt-3">
+              <div className="mb-1 flex items-center justify-between">
+                <Eyebrow>Latest calls</Eyebrow>
+                <span className="flex items-center gap-2.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--faint)]">
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--hit)" }} />
+                    hit
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--miss)" }} />
+                    miss
+                  </span>
+                </span>
+              </div>
+              <div className="divide-y divide-[var(--line)]">
+                {d.recent.length > 0 ? (
+                  d.recent.map((p) => <MiniCall key={p.index} p={p} />)
+                ) : (
+                  <div className="py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
+                    Awaiting first pitch…
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[var(--line-2)] bg-[var(--fill)] py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text)] transition-colors group-hover:bg-[var(--fill-hi)]">
+              Open live game{" "}
+              <span className="transition-transform group-hover:translate-x-0.5">→</span>
+            </div>
           </div>
         </div>
       </div>
@@ -337,7 +334,7 @@ function Spotlight({ game }: { game: Game }) {
 
 function StatCell({ label, value, accent }: { label: string; value: React.ReactNode; accent?: string }) {
   return (
-    <div className="flex-1 px-5 py-3.5">
+    <div className="flex-1 px-5 py-3.5 text-center sm:text-left">
       <div
         className="font-mono text-[22px] font-semibold leading-none tabular-nums tracking-[-0.02em]"
         style={{ color: accent || "var(--text)" }}
@@ -351,26 +348,15 @@ function StatCell({ label, value, accent }: { label: string; value: React.ReactN
   );
 }
 
-function ScheduleSection({
-  label,
-  count,
-  children,
-}: {
-  label: string;
-  count: number;
-  children: React.ReactNode;
-}) {
+function SectionHead({ label, count }: { label: string; count: number }) {
   return (
-    <section className="mb-11">
-      <div className="mb-4 flex items-center gap-3">
-        <Eyebrow tone="text">{label}</Eyebrow>
-        <span className="font-mono text-[11px] tabular-nums text-[var(--faint)]">
-          {String(count).padStart(2, "0")}
-        </span>
-        <div className="h-px flex-1 bg-[var(--line)]" />
-      </div>
-      <StaggerGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</StaggerGroup>
-    </section>
+    <div className="mb-4 flex items-center gap-3">
+      <Eyebrow tone="text">{label}</Eyebrow>
+      <span className="font-mono text-[11px] tabular-nums text-[var(--faint)]">
+        {String(count).padStart(2, "0")}
+      </span>
+      <div className="h-px flex-1 bg-[var(--line)]" />
+    </div>
   );
 }
 
@@ -381,23 +367,30 @@ export function Schedule() {
   const finals = games.filter((g) => g.status === "final");
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 pt-7 sm:px-6 sm:pt-9">
-      <header className="mb-10 flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-        <Reveal>
-          <Eyebrow tone="muted" className="mb-3">
+    <main className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
+      {/* centered hero with the FluidGlass lens drifting behind the title */}
+      <header className="relative mb-12 overflow-hidden py-10 sm:py-14">
+        <FluidGlassHero />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(60% 60% at 50% 45%, transparent, var(--bg) 92%)" }}
+        />
+        <Reveal className="relative mx-auto flex max-w-2xl flex-col items-center text-center">
+          <Eyebrow tone="muted" className="mb-4">
             {SCHEDULE_DATE} · 2026
           </Eyebrow>
-          <h1 className="font-display text-[2.6rem] font-bold leading-[0.95] tracking-tight text-[var(--text)] sm:text-[3.4rem]">
-            Today&rsquo;s slate
+          <h1 className="font-display text-[2.7rem] font-bold leading-[0.95] tracking-tight text-[var(--text)] sm:text-[3.6rem]">
+            Every pitch, predicted.
           </h1>
-          <div className="accent-rule mt-5 w-20" />
-          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[var(--muted)]">
-            The model reads every pitch in real time. Open a live game to watch its call
-            land — or miss — against what actually happens.
+          <div className="accent-rule mt-5 w-16" />
+          <p className="mt-5 max-w-md text-[15px] leading-relaxed text-[var(--muted)]">
+            Live win probability and the model&rsquo;s call on the next pitch, side by side with what
+            actually happens.
           </p>
         </Reveal>
-        <Reveal delay={0.12} className="w-full lg:w-auto">
-          <div className="glass-panel flex w-full divide-x divide-[var(--line)] lg:w-auto">
+        <Reveal delay={0.12} className="relative mt-8 flex justify-center">
+          <div className="surface flex divide-x divide-[var(--line)]">
             <StatCell label="Live now" value={live.length} accent="var(--live)" />
             <StatCell label="Model acc · today" value="73%" accent="var(--model)" />
             <StatCell label="Pitches scored" value="2,481" />
@@ -406,14 +399,8 @@ export function Schedule() {
       </header>
 
       {live.length > 0 && (
-        <section className="mb-11">
-          <div className="mb-4 flex items-center gap-3">
-            <Eyebrow tone="text">Live now</Eyebrow>
-            <span className="font-mono text-[11px] tabular-nums text-[var(--faint)]">
-              {String(live.length).padStart(2, "0")}
-            </span>
-            <div className="h-px flex-1 bg-[var(--line)]" />
-          </div>
+        <section className="mb-12">
+          <SectionHead label="Live now" count={live.length} />
           <div className="flex flex-col gap-6">
             {live.map((g, i) => (
               <Reveal key={g.id} delay={i * 0.06}>
@@ -425,26 +412,32 @@ export function Schedule() {
       )}
 
       {pre.length > 0 && (
-        <ScheduleSection label="Upcoming" count={pre.length}>
-          {pre.map((g) => (
-            <StaggerItem key={g.id} className="h-full">
-              <GameCard game={g} />
-            </StaggerItem>
-          ))}
-        </ScheduleSection>
+        <section className="mb-12">
+          <SectionHead label="Upcoming" count={pre.length} />
+          <StaggerGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {pre.map((g) => (
+              <StaggerItem key={g.id} className="h-full">
+                <GameCard game={g} />
+              </StaggerItem>
+            ))}
+          </StaggerGroup>
+        </section>
       )}
       {finals.length > 0 && (
-        <ScheduleSection label="Final" count={finals.length}>
-          {finals.map((g) => (
-            <StaggerItem key={g.id} className="h-full">
-              <GameCard game={g} />
-            </StaggerItem>
-          ))}
-        </ScheduleSection>
+        <section className="mb-12">
+          <SectionHead label="Final" count={finals.length} />
+          <StaggerGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {finals.map((g) => (
+              <StaggerItem key={g.id} className="h-full">
+                <GameCard game={g} />
+              </StaggerItem>
+            ))}
+          </StaggerGroup>
+        </section>
       )}
 
       {games.length === 0 && (
-        <div className="glass-panel py-16 text-center font-mono text-sm uppercase tracking-[0.16em] text-[var(--faint)]">
+        <div className="surface py-16 text-center font-mono text-sm uppercase tracking-[0.16em] text-[var(--faint)]">
           No games scheduled
         </div>
       )}

@@ -1,11 +1,10 @@
 "use client";
 
-/* DiamondAI — shared UI primitives (ported from design/components.jsx) */
-import Image from "next/image";
+/* DiamondAI — shared UI primitives (ported from design/components.jsx).
+   Surfaces are flat & solid here; the only frosted glass is the nav pill. */
 import { motion, useReducedMotion } from "motion/react";
 import { cx, pct } from "@/lib/ui";
 import type { ViewTeam, Zone } from "@/lib/view";
-import { GlassPanel } from "./GlassPanel";
 
 type Tone = "muted" | "model" | "live" | "text" | "faint";
 
@@ -39,47 +38,73 @@ export function Eyebrow({
   );
 }
 
-// Team monogram — the team logo on an accent-tinted tile (abbr as fallback).
-const MONOGRAM_PX = { sm: 28, md: 36, lg: 44 } as const;
+// Team logo — transparent monochrome SVG with dark/light variants; CSS toggles
+// which shows (see .logo-dark / .logo-light in globals.css). Falls back to the
+// abbreviation on a tinted tile for unknown teams.
+const LOGO_PX = { sm: 26, md: 44, lg: 66, xl: 104 } as const;
 
-export function Monogram({
+export function TeamLogo({
   team,
-  size = "md",
+  px,
+  className = "",
 }: {
   team: ViewTeam;
-  size?: "sm" | "md" | "lg";
+  px: number;
+  className?: string;
 }) {
-  const px = MONOGRAM_PX[size];
-  const inner = Math.round(px * 0.74);
-  return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-chip)]"
-      style={{
-        width: px,
-        height: px,
-        background: `${team.primaryColor}14`,
-        boxShadow: `inset 0 0 0 1px ${team.primaryColor}40`,
-      }}
-    >
-      {team.logoPath ? (
-        <Image
-          src={team.logoPath}
-          alt={`${team.name} logo`}
-          width={inner}
-          height={inner}
-          className="h-[74%] w-[74%] object-contain"
-          draggable={false}
-        />
-      ) : (
+  if (!team.hasLogo) {
+    return (
+      <span
+        className={cx("inline-flex shrink-0 items-center justify-center rounded-[var(--r-chip)]", className)}
+        style={{
+          width: px,
+          height: px,
+          background: `${team.primaryColor}1f`,
+          boxShadow: `inset 0 0 0 1px ${team.primaryColor}40`,
+        }}
+      >
         <span
           className="font-mono font-semibold tracking-wider"
           style={{ color: team.primaryColor, fontSize: Math.round(px * 0.3) }}
         >
           {team.abbr}
         </span>
-      )}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cx("relative inline-flex shrink-0 items-center justify-center", className)}
+      style={{ width: px, height: px }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={team.logoDark}
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="logo-dark absolute inset-0 h-full w-full object-contain"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={team.logoLight}
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="logo-light absolute inset-0 h-full w-full object-contain"
+      />
     </span>
   );
+}
+
+export function Monogram({
+  team,
+  size = "md",
+}: {
+  team: ViewTeam;
+  size?: "sm" | "md" | "lg" | "xl";
+}) {
+  return <TeamLogo team={team} px={LOGO_PX[size]} />;
 }
 
 export function LiveDot({ className = "" }: { className?: string }) {
@@ -303,14 +328,14 @@ export function Confidence({ value }: { value: number }) {
           />
         ))}
       </div>
-      <span className="w-11 text-right font-mono text-[15px] font-semibold tabular-nums text-[var(--text)]">
+      <span className="w-11 text-right font-mono text-[15px] font-semibold tabular-nums text-[var(--model)]">
         {pct(value)}%
       </span>
     </div>
   );
 }
 
-// Verdict chip — hit (model blue) / miss (live red)
+// Verdict chip — hit (green) / miss (red)
 export function Verdict({ hit, label }: { hit: boolean; label: string }) {
   return (
     <span
@@ -474,21 +499,15 @@ export function LeanBar({
   );
 }
 
-// Frosted glass panel — the signature surface (liquid-glass primitive)
+// Flat solid panel — the workhorse surface (no glass).
 export function Panel({
   children,
   className = "",
-  as = "section",
 }: {
   children: React.ReactNode;
   className?: string;
-  as?: React.ElementType;
 }) {
-  return (
-    <GlassPanel as={as} className={className}>
-      {children}
-    </GlassPanel>
-  );
+  return <section className={cx("surface", className)}>{children}</section>;
 }
 
 // Panel header band: mono label, optional right meta

@@ -40,46 +40,46 @@ export const TEAMS: Record<string, Team> = {
 };
 
 /**
- * Team identity metadata: official primary color + local logo asset.
- * Kept separate from the `Team` contract so the real feed can fulfill the
- * core shape without owning brand assets. Logos live under `public/logos/mlb/`.
+ * Team identity metadata: official primary color. Kept separate from the `Team`
+ * contract so the real feed can fulfill the core shape without owning brand
+ * assets. Logo SVGs (transparent, dark/light variants) live under
+ * `public/logos/mlb/{dark,light}/<id>.svg` and are resolved by id in `view.ts`.
  */
 export interface TeamMeta {
   primaryColor: string;
-  logoPath: string;
 }
 
 export const TEAM_META: Record<string, TeamMeta> = {
-  bal: { primaryColor: "#DF4601", logoPath: "/logos/mlb/bal.png" },
-  bos: { primaryColor: "#BD3039", logoPath: "/logos/mlb/bos.png" },
-  nyy: { primaryColor: "#0C2340", logoPath: "/logos/mlb/nyy.png" },
-  tb: { primaryColor: "#092C5C", logoPath: "/logos/mlb/tb.png" },
-  tor: { primaryColor: "#134A8E", logoPath: "/logos/mlb/tor.png" },
-  cws: { primaryColor: "#27251F", logoPath: "/logos/mlb/cws.png" },
-  cle: { primaryColor: "#0C2340", logoPath: "/logos/mlb/cle.png" },
-  det: { primaryColor: "#0C2340", logoPath: "/logos/mlb/det.png" },
-  kc: { primaryColor: "#004687", logoPath: "/logos/mlb/kc.png" },
-  min: { primaryColor: "#002B5C", logoPath: "/logos/mlb/min.png" },
-  hou: { primaryColor: "#002D62", logoPath: "/logos/mlb/hou.png" },
-  laa: { primaryColor: "#BA0021", logoPath: "/logos/mlb/laa.png" },
-  oak: { primaryColor: "#003831", logoPath: "/logos/mlb/oak.png" },
-  sea: { primaryColor: "#0C2C56", logoPath: "/logos/mlb/sea.png" },
-  tex: { primaryColor: "#003278", logoPath: "/logos/mlb/tex.png" },
-  atl: { primaryColor: "#CE1141", logoPath: "/logos/mlb/atl.png" },
-  mia: { primaryColor: "#00A3E0", logoPath: "/logos/mlb/mia.png" },
-  nym: { primaryColor: "#002D72", logoPath: "/logos/mlb/nym.png" },
-  phi: { primaryColor: "#E81828", logoPath: "/logos/mlb/phi.png" },
-  wsh: { primaryColor: "#AB0003", logoPath: "/logos/mlb/wsh.png" },
-  chc: { primaryColor: "#0E3386", logoPath: "/logos/mlb/chc.png" },
-  cin: { primaryColor: "#C6011F", logoPath: "/logos/mlb/cin.png" },
-  mil: { primaryColor: "#12284B", logoPath: "/logos/mlb/mil.png" },
-  pit: { primaryColor: "#FDB827", logoPath: "/logos/mlb/pit.png" },
-  stl: { primaryColor: "#C41E3A", logoPath: "/logos/mlb/stl.png" },
-  ari: { primaryColor: "#A71930", logoPath: "/logos/mlb/ari.png" },
-  col: { primaryColor: "#333366", logoPath: "/logos/mlb/col.png" },
-  lad: { primaryColor: "#005A9C", logoPath: "/logos/mlb/lad.png" },
-  sd: { primaryColor: "#2F241D", logoPath: "/logos/mlb/sd.png" },
-  sf: { primaryColor: "#FD5A1E", logoPath: "/logos/mlb/sf.png" },
+  bal: { primaryColor: "#DF4601" },
+  bos: { primaryColor: "#BD3039" },
+  nyy: { primaryColor: "#0C2340" },
+  tb: { primaryColor: "#092C5C" },
+  tor: { primaryColor: "#134A8E" },
+  cws: { primaryColor: "#27251F" },
+  cle: { primaryColor: "#0C2340" },
+  det: { primaryColor: "#0C2340" },
+  kc: { primaryColor: "#004687" },
+  min: { primaryColor: "#002B5C" },
+  hou: { primaryColor: "#002D62" },
+  laa: { primaryColor: "#BA0021" },
+  oak: { primaryColor: "#003831" },
+  sea: { primaryColor: "#0C2C56" },
+  tex: { primaryColor: "#003278" },
+  atl: { primaryColor: "#CE1141" },
+  mia: { primaryColor: "#00A3E0" },
+  nym: { primaryColor: "#002D72" },
+  phi: { primaryColor: "#E81828" },
+  wsh: { primaryColor: "#AB0003" },
+  chc: { primaryColor: "#0E3386" },
+  cin: { primaryColor: "#C6011F" },
+  mil: { primaryColor: "#12284B" },
+  pit: { primaryColor: "#FDB827" },
+  stl: { primaryColor: "#C41E3A" },
+  ari: { primaryColor: "#A71930" },
+  col: { primaryColor: "#333366" },
+  lad: { primaryColor: "#005A9C" },
+  sd: { primaryColor: "#2F241D" },
+  sf: { primaryColor: "#FD5A1E" },
 };
 
 export const VENUES: Record<string, string> = {

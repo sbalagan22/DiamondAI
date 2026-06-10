@@ -19,6 +19,8 @@ export interface PolymarketMarket {
   tokenA: string;
   tokenB: string;
   endDate: string | null;
+  /** Public polymarket.com page for this market/event. */
+  url: string;
 }
 
 export interface PricePoint {
@@ -52,6 +54,18 @@ export function normalizeMarket(raw: Record<string, unknown>): PolymarketMarket 
   if (NON_TEAM.has(outcomes[0].toLowerCase()) || NON_TEAM.has(outcomes[1].toLowerCase())) return null;
   if (/\bO\/U\b|over\/under|total runs/i.test(question)) return null;
   if (!Number.isFinite(prices[0]) || !Number.isFinite(prices[1])) return null;
+
+  // Build the public page URL — prefer the parent event slug, fall back to the
+  // market slug, then a safe default.
+  const marketSlug = String(raw.slug ?? "");
+  let eventSlug = "";
+  const events = raw.events;
+  if (Array.isArray(events) && events.length && typeof events[0] === "object" && events[0] !== null) {
+    eventSlug = String((events[0] as Record<string, unknown>).slug ?? "");
+  }
+  const slug = eventSlug || marketSlug;
+  const url = slug ? `https://polymarket.com/event/${slug}` : "https://polymarket.com/markets";
+
   return {
     id: String(raw.id ?? raw.conditionId ?? question),
     question,
@@ -62,6 +76,7 @@ export function normalizeMarket(raw: Record<string, unknown>): PolymarketMarket 
     tokenA: tokens[0],
     tokenB: tokens[1],
     endDate: (raw.endDateIso as string) ?? (raw.endDate as string) ?? null,
+    url,
   };
 }
 
