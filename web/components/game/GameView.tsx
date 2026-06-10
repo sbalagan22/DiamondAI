@@ -26,6 +26,7 @@ import type { Game } from "@/lib/types";
 import { cx, pct } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
 import { ResultFlash, StrikeoutStamp } from "./moments";
+import { PolymarketPanel } from "./PolymarketPanel";
 
 const PREDICT_MS = 3400;
 const REVEAL_MS = 2800;
@@ -606,6 +607,7 @@ function GameLayout({
           </div>
           <div className="flex flex-col gap-5">
             <WinProbPanel away={away} home={home} series={series} />
+            <PolymarketPanel teamHint={`${game.home.city} ${game.home.name}`} />
             <AccuracyPanel history={history} />
           </div>
         </div>
