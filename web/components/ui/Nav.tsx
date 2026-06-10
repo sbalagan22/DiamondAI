@@ -4,7 +4,8 @@
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Wordmark } from "./primitives";
+import { getGames } from "@/lib/mock";
+import { ChevronLeft, LiveDot, Wordmark } from "./primitives";
 
 // Dark / light theme toggle — half-filled disc; persists to localStorage.
 // Initial state is read from the DOM (set pre-paint in layout.tsx), so the
@@ -74,6 +75,7 @@ function MockPill() {
 
 export function PillNav({ mode = "home" }: { mode?: "home" | "game" }) {
   const reduce = useReducedMotion();
+  const liveCount = getGames().filter((g) => g.status === "live").length;
   return (
     <div className="sticky top-0 z-30 pt-3 sm:pt-4">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -100,6 +102,14 @@ export function PillNav({ mode = "home" }: { mode?: "home" | "game" }) {
             >
               <Wordmark />
             </Link>
+            {liveCount > 0 && (
+              <span
+                className="hidden items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--glass-border)] bg-[var(--fill)] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--live)] xs:inline-flex"
+                title={`${liveCount} live game${liveCount > 1 ? "s" : ""} right now`}
+              >
+                <LiveDot /> {liveCount} live
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2.5">
             {mode === "game" && (

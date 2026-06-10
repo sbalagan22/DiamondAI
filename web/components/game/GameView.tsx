@@ -63,20 +63,36 @@ function Scoreboard({
     <Panel className="overflow-hidden">
       <div className="accent-rule" />
       <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-3 sm:gap-5">
           <div className="flex items-center gap-2.5">
             <Monogram team={away} size="md" />
+            <div className="leading-tight">
+              <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)]">
+                {away.name}
+              </div>
+              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
+                {away.city}
+              </div>
+            </div>
             <TickNumber
               value={awayScore}
-              className="font-mono text-[32px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)]"
+              className="ml-1 font-mono text-[32px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)]"
             />
           </div>
           <span className="text-[var(--faint)]">–</span>
           <div className="flex items-center gap-2.5">
             <TickNumber
               value={homeScore}
-              className="font-mono text-[32px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)]"
+              className="mr-1 font-mono text-[32px] font-semibold leading-none tabular-nums tracking-[-0.03em] text-[var(--text)]"
             />
+            <div className="text-right leading-tight">
+              <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text)]">
+                {home.name}
+              </div>
+              <div className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)] sm:block">
+                {home.city}
+              </div>
+            </div>
             <Monogram team={home} size="md" />
           </div>
         </div>
