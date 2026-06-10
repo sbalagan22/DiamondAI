@@ -237,7 +237,7 @@ function Spotlight({ game }: { game: Game }) {
     <Link
       href={gameUrl(game.id)}
       aria-label={`Open featured live game: ${away.name} at ${home.name}`}
-      className="group glass-panel glass-hover mb-12 block overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)]"
+      className="group glass-panel glass-hover block overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)]"
     >
       <div className="accent-rule" />
       <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-5 py-3.5 sm:px-7">
@@ -379,8 +379,6 @@ export function Schedule() {
   const live = games.filter((g) => g.status === "live");
   const pre = games.filter((g) => g.status === "upcoming");
   const finals = games.filter((g) => g.status === "final");
-  const featured = live[0];
-  const restLive = featured ? live.slice(1) : live;
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-7 sm:px-6 sm:pt-9">
@@ -407,21 +405,25 @@ export function Schedule() {
         </Reveal>
       </header>
 
-      {featured && (
-        <Reveal delay={0.06}>
-          <Spotlight game={featured} />
-        </Reveal>
+      {live.length > 0 && (
+        <section className="mb-11">
+          <div className="mb-4 flex items-center gap-3">
+            <Eyebrow tone="text">Live now</Eyebrow>
+            <span className="font-mono text-[11px] tabular-nums text-[var(--faint)]">
+              {String(live.length).padStart(2, "0")}
+            </span>
+            <div className="h-px flex-1 bg-[var(--line)]" />
+          </div>
+          <div className="flex flex-col gap-6">
+            {live.map((g, i) => (
+              <Reveal key={g.id} delay={i * 0.06}>
+                <Spotlight game={g} />
+              </Reveal>
+            ))}
+          </div>
+        </section>
       )}
 
-      {restLive.length > 0 && (
-        <ScheduleSection label="More live" count={restLive.length}>
-          {restLive.map((g) => (
-            <StaggerItem key={g.id} className="h-full">
-              <GameCard game={g} />
-            </StaggerItem>
-          ))}
-        </ScheduleSection>
-      )}
       {pre.length > 0 && (
         <ScheduleSection label="Upcoming" count={pre.length}>
           {pre.map((g) => (
