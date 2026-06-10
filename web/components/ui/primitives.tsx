@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion } from "motion/react";
 import { cx, pct } from "@/lib/ui";
 import type { ViewTeam, Zone } from "@/lib/view";
+import { GlassPanel } from "./GlassPanel";
 
 type Tone = "muted" | "model" | "live" | "text" | "faint";
 
@@ -436,17 +437,21 @@ export function LeanBar({
   );
 }
 
-// Frosted glass panel — the signature surface
+// Frosted glass panel — the signature surface (liquid-glass primitive)
 export function Panel({
   children,
   className = "",
-  as: Tag = "section",
+  as = "section",
 }: {
   children: React.ReactNode;
   className?: string;
   as?: React.ElementType;
 }) {
-  return <Tag className={cx("glass-panel", className)}>{children}</Tag>;
+  return (
+    <GlassPanel as={as} className={className}>
+      {children}
+    </GlassPanel>
+  );
 }
 
 // Panel header band: mono label, optional right meta

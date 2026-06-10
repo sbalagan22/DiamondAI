@@ -55,6 +55,7 @@
 
   /* tint fed to the liquid-glass primitive */
   --glass-tint: rgba(255, 255, 255, 0.10);
+  --glass-tint-strong: rgba(255, 255, 255, 0.14);
 
   /* ---- semantic fills & hairlines (so light mode can invert them) ---- */
   --fill:        rgba(255,255,255,0.05);   /* quiet chip / button fill */
@@ -135,11 +136,40 @@ body {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.015)),
     var(--glass);
-  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.08);
-  backdrop-filter: url(#liquid-glass) blur(24px) saturate(185%) brightness(1.08);
+  -webkit-backdrop-filter: blur(34px) saturate(190%) brightness(1.08);
+  backdrop-filter: url(#liquid-glass) blur(34px) saturate(190%) brightness(1.08);
   border: 1px solid var(--glass-border);
   border-radius: var(--r-card);
   box-shadow: var(--spec), var(--shadow-card);
+}
+
+/* Edge-only treatment for surfaces whose blur is supplied by the
+   @creativoma/liquid-glass primitive (border + specular shadow + sheen). */
+.glass-edge {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--spec), var(--shadow-card);
+}
+.glass-edge--pill {
+  border-color: var(--glass-border-hi);
+  box-shadow: var(--spec), 0 16px 38px -14px rgba(0, 0, 0, 0.7);
+}
+.glass-edge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(133deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 34%);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+:root[data-theme="light"] .glass-edge::after {
+  background: linear-gradient(133deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 34%);
+  mix-blend-mode: normal;
+  opacity: 0.55;
 }
 
 /* red → blue signature hairline */
@@ -167,8 +197,8 @@ body {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.03)),
     rgba(58, 58, 60, 0.5);
-  -webkit-backdrop-filter: blur(26px) saturate(190%) brightness(1.1);
-  backdrop-filter: url(#liquid-glass) blur(26px) saturate(190%) brightness(1.1);
+  -webkit-backdrop-filter: blur(36px) saturate(195%) brightness(1.1);
+  backdrop-filter: url(#liquid-glass) blur(36px) saturate(195%) brightness(1.1);
   border: 1px solid var(--glass-border-hi);
   box-shadow: var(--spec), 0 16px 38px -14px rgba(0,0,0,0.7);
 }
@@ -239,6 +269,7 @@ body {
   --miss-soft:  rgba(226, 58, 64, 0.12);
 
   --glass-tint: rgba(255, 255, 255, 0.32);
+  --glass-tint-strong: rgba(255, 255, 255, 0.5);
 
   --fill:        rgba(0,0,0,0.04);
   --fill-hi:     rgba(0,0,0,0.08);
