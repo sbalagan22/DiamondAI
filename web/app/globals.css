@@ -41,11 +41,20 @@
   /* ---- red / white / blue accents (shared chroma & lightness, varied hue) ---- */
   --model:      #4d8bff;            /* blue — the model */
   --model-soft: rgba(77, 139, 255, 0.18);
-  --live:       #ff4b51;            /* red — live / miss */
+  --live:       #ff4b51;            /* red — live state */
   --live-soft:  rgba(255, 75, 81, 0.18);
   --chalk:      #ffffff;            /* white — chalk / highlight accent */
   --chalk-soft: rgba(255, 255, 255, 0.14);
   --warn:       #e2b94e;
+
+  /* result semantics — green = correct call, red = miss (model stays blue) */
+  --hit:        #3fb950;
+  --hit-soft:   rgba(63, 185, 80, 0.18);
+  --miss:       #ff5b61;
+  --miss-soft:  rgba(255, 91, 97, 0.18);
+
+  /* tint fed to the liquid-glass primitive */
+  --glass-tint: rgba(255, 255, 255, 0.10);
 
   /* ---- semantic fills & hairlines (so light mode can invert them) ---- */
   --fill:        rgba(255,255,255,0.05);   /* quiet chip / button fill */
@@ -74,18 +83,36 @@
 
 html, body { background: var(--bg); }
 
-/* fixed ambient wash — the stadium light the glass refracts; red + blue echoes */
+/* fixed ambient field — the vivid red/blue light the glass refracts.
+   ::before is the base wash; ::after is a slow-drifting aurora above it. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(62% 52% at 85% -8%, rgba(77, 139, 255, 0.30), transparent 60%),
+    radial-gradient(58% 50% at 6% 108%, rgba(255, 75, 81, 0.24), transparent 62%),
+    radial-gradient(50% 44% at 50% 42%, rgba(255, 255, 255, 0.05), transparent 64%),
+    var(--bg);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: -25%;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(58% 48% at 86% -4%, rgba(77, 139, 255, 0.16), transparent 60%),
-    radial-gradient(54% 46% at 6% 104%, rgba(255, 75, 81, 0.13), transparent 62%),
-    radial-gradient(42% 38% at 50% 50%, rgba(255, 255, 255, 0.035), transparent 64%),
-    var(--bg);
+    radial-gradient(34% 34% at 24% 28%, rgba(77, 139, 255, 0.24), transparent 60%),
+    radial-gradient(36% 36% at 78% 72%, rgba(255, 75, 81, 0.20), transparent 60%),
+    radial-gradient(26% 26% at 60% 18%, rgba(140, 110, 255, 0.14), transparent 62%);
+  filter: blur(44px) saturate(125%);
+  animation: bg-drift 38s ease-in-out infinite alternate;
+}
+@keyframes bg-drift {
+  0%   { transform: translate3d(-2%, -1.5%, 0) scale(1.06) rotate(-1deg); }
+  100% { transform: translate3d(2.5%, 2%, 0) scale(1.14) rotate(1.5deg); }
 }
 
 body {
@@ -206,6 +233,13 @@ body {
   --chalk-soft: rgba(0, 0, 0, 0.08);
   --warn:       #b6822a;
 
+  --hit:        #1f883d;
+  --hit-soft:   rgba(31, 136, 61, 0.14);
+  --miss:       #e23a40;
+  --miss-soft:  rgba(226, 58, 64, 0.12);
+
+  --glass-tint: rgba(255, 255, 255, 0.32);
+
   --fill:        rgba(0,0,0,0.04);
   --fill-hi:     rgba(0,0,0,0.08);
   --hair:        rgba(0,0,0,0.09);
@@ -222,9 +256,16 @@ body {
 
 :root[data-theme="light"] body::before {
   background:
-    radial-gradient(58% 48% at 86% -4%, rgba(47, 107, 240, 0.10), transparent 60%),
-    radial-gradient(54% 46% at 6% 104%, rgba(226, 58, 64, 0.08), transparent 62%),
+    radial-gradient(62% 52% at 85% -8%, rgba(47, 107, 240, 0.20), transparent 60%),
+    radial-gradient(58% 50% at 6% 108%, rgba(226, 58, 64, 0.16), transparent 62%),
+    radial-gradient(50% 44% at 50% 42%, rgba(255, 255, 255, 0.5), transparent 64%),
     var(--bg);
+}
+:root[data-theme="light"] body::after {
+  background:
+    radial-gradient(34% 34% at 24% 28%, rgba(47, 107, 240, 0.16), transparent 60%),
+    radial-gradient(36% 36% at 78% 72%, rgba(226, 58, 64, 0.13), transparent 60%),
+    radial-gradient(26% 26% at 60% 18%, rgba(120, 90, 240, 0.10), transparent 62%);
 }
 
 :root[data-theme="light"] .glass-panel {
