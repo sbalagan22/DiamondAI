@@ -83,7 +83,7 @@ export function buildRoster(rng: Rng): Roster {
   };
 }
 
-function predictPitch(
+export function predictPitch(
   rng: Rng,
   repertoire: [PitchTypeCode, number][],
   s: GameSnapshot,
@@ -104,7 +104,7 @@ function predictPitch(
     .sort((a, b) => b.prob - a.prob);
 }
 
-function predictOutcome(s: GameSnapshot): Record<OutcomeClass, number> {
+export function predictOutcome(s: GameSnapshot): Record<OutcomeClass, number> {
   const w = {
     strikeout: 1 + s.strikes * 0.9,
     walk: 0.4 + s.balls * 0.55,

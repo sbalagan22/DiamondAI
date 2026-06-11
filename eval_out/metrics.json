@@ -1,0 +1,110 @@
+{
+  "ckpt": "6000",
+  "device": "cpu (1x cpu)",
+  "val_games": 1225,
+  "ece_home_win": 0.07188154047634336,
+  "heads": {
+    "next_pitch_type": {
+      "model_acc": 0.5059670929497003,
+      "model_logloss": 1.1379365921020508,
+      "n_positions": 306682,
+      "baseline_acc": 0.33581364410040365,
+      "baseline_logloss": 1.7184344932545792,
+      "per_count_acc": 0.33581364410040365
+    },
+    "next_pitch_outcome": {
+      "model_acc": 0.37257484951839365,
+      "model_logloss": 1.455524206161499,
+      "n_positions": 306682,
+      "baseline_acc": 0.3536301445797275,
+      "baseline_logloss": 1.548763427673071
+    },
+    "ab_outcome": {
+      "model_acc": 0.5326478449661749,
+      "model_logloss": 1.212159276008606,
+      "n_positions": 307907,
+      "baseline_acc": 0.4006372053899392,
+      "baseline_logloss": 1.5280009412327706
+    },
+    "home_win": {
+      "model_acc": 0.7773710893224253,
+      "model_logloss": 0.47916045784950256,
+      "n_positions": 307907,
+      "baseline_acc": 0.5198322870217306,
+      "baseline_logloss": 0.6931471805599453,
+      "empirical_home_win_rate": 0.5198322870217306
+    }
+  },
+  "calibration_bins": [
+    {
+      "bin_lo": 0.0,
+      "bin_hi": 0.1,
+      "count": 77888,
+      "mean_pred": 0.029083026573061943,
+      "empirical": 0.11119813064913722
+    },
+    {
+      "bin_lo": 0.1,
+      "bin_hi": 0.2,
+      "count": 27873,
+      "mean_pred": 0.1476731151342392,
+      "empirical": 0.29390449538980373
+    },
+    {
+      "bin_lo": 0.2,
+      "bin_hi": 0.30000000000000004,
+      "count": 22527,
+      "mean_pred": 0.24880896508693695,
+      "empirical": 0.37133217916278244
+    },
+    {
+      "bin_lo": 0.30000000000000004,
+      "bin_hi": 0.4,
+      "count": 19263,
+      "mean_pred": 0.3487114906311035,
+      "empirical": 0.4378861028915538
+    },
+    {
+      "bin_lo": 0.4,
+      "bin_hi": 0.5,
+      "count": 17379,
+      "mean_pred": 0.4497331380844116,
+      "empirical": 0.5272455262097935
+    },
+    {
+      "bin_lo": 0.5,
+      "bin_hi": 0.6000000000000001,
+      "count": 16439,
+      "mean_pred": 0.5494716763496399,
+      "empirical": 0.5914593345093984
+    },
+    {
+      "bin_lo": 0.6000000000000001,
+      "bin_hi": 0.7000000000000001,
+      "count": 15869,
+      "mean_pred": 0.6506553888320923,
+      "empirical": 0.6350746738924948
+    },
+    {
+      "bin_lo": 0.7000000000000001,
+      "bin_hi": 0.8,
+      "count": 16225,
+      "mean_pred": 0.7502924203872681,
+      "empirical": 0.6932511556240369
+    },
+    {
+      "bin_lo": 0.8,
+      "bin_hi": 0.9,
+      "count": 18106,
+      "mean_pred": 0.8520908951759338,
+      "empirical": 0.7682536175853308
+    },
+    {
+      "bin_lo": 0.9,
+      "bin_hi": 1.0,
+      "count": 76338,
+      "mean_pred": 0.979070246219635,
+      "empirical": 0.9469071759805078
+    }
+  ]
+}

@@ -5,8 +5,7 @@
    liquid glass on the hero scoreboard, a centered/responsive matchup, model-blue
    accents on key numbers, and a compact Polymarket reference in the win-prob panel. */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { notFound } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Reveal, TickNumber } from "@/components/ui/motion";
 import {
   Bases,
@@ -23,14 +22,13 @@ import {
   WinProbChart,
   type CardStatus,
 } from "@/components/ui/primitives";
-import { getGame } from "@/lib/mock";
+import { useGameFeed, type LiveGameState } from "@/components/useLiveGame";
 import type { Game } from "@/lib/types";
 import { cx, pct, teamSplit } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
 import { ResultFlash, StrikeoutStamp } from "./moments";
 import { PolymarketTicker } from "./PolymarketTicker";
 
-const PREDICT_MS = 3400;
 const REVEAL_MS = 2800;
 type Phase = "predicting" | "revealed";
 
@@ -662,56 +660,46 @@ function GameLayout({
   );
 }
 
-// ---- Live: predict -> reveal ticker over the mock event script -------------
-function LiveGameView({ game }: { game: Game }) {
-  const events = game.events;
-  const start = Math.min(game.liveIndex, events.length - 1);
-  const initialConsumed = events.slice(0, start);
+// ---- Live: predict -> reveal driven by real pitches arriving from the feed -
+function LiveGameView({ game, live }: { game: Game; live: LiveGameState }) {
+  const consumed = live.consumed;
+  const [revealIdx, setRevealIdx] = useState<number | null>(null);
+  const prevLen = useRef(consumed.length);
 
-  const [idx, setIdx] = useState(start);
-  const [phase, setPhase] = useState<Phase>("predicting");
-  const [paused, setPaused] = useState(false);
-  const [history, setHistory] = useState<ViewPitch[]>(() =>
-    initialConsumed.map(viewPitch).reverse().slice(0, 16),
-  );
-  const [series, setSeries] = useState<number[]>(() => {
-    const s = initialConsumed.map((e) => e.homeWinProb);
-    return s.length ? s.slice(-26) : [game.pregameHomeWinProb];
-  });
-
-  const finished = idx >= events.length;
-  const clampedIdx = Math.min(idx, events.length - 1);
-  const current = viewPitch(events[clampedIdx]);
-
+  // When a newly-thrown pitch lands, flash it "revealed" before returning to
+  // predicting the next one. No reveal on first paint (don't replay history).
   useEffect(() => {
-    if (paused || finished) return;
-    let timer: ReturnType<typeof setTimeout>;
-    if (phase === "predicting") {
-      timer = setTimeout(() => {
-        const vp = viewPitch(events[clampedIdx]);
-        setHistory((h) => [vp, ...h].slice(0, 16));
-        setSeries((s) => [...s, vp.homeWinProbAfter].slice(-26));
-        setPhase("revealed");
-      }, PREDICT_MS);
-    } else {
-      timer = setTimeout(() => {
-        setIdx((i) => i + 1);
-        setPhase("predicting");
-      }, REVEAL_MS);
+    const len = consumed.length;
+    if (len > prevLen.current && prevLen.current > 0) {
+      prevLen.current = len;
+      setRevealIdx(len - 1);
+      const t = setTimeout(() => setRevealIdx(null), REVEAL_MS);
+      return () => clearTimeout(t);
     }
-    return () => clearTimeout(timer);
-  }, [phase, paused, finished, clampedIdx, events]);
+    prevLen.current = len;
+  }, [consumed.length]);
+
+  const revealing = revealIdx != null && consumed[revealIdx] != null;
+  const currentEvent = revealing ? consumed[revealIdx] : (live.next ?? live.last);
+  if (!currentEvent) {
+    return <GameNotice title="Game starting" body="Waiting for the first pitch of the broadcast…" />;
+  }
+
+  const current = viewPitch(currentEvent);
+  const phase: Phase = revealing ? "revealed" : live.next ? "predicting" : "revealed";
+  const history = consumed.slice(-16).reverse().map(viewPitch);
+  const wpSeries = consumed.map((e) => e.homeWinProb).slice(-26);
+  const series = wpSeries.length ? wpSeries : [game.pregameHomeWinProb];
 
   return (
     <GameLayout
       game={game}
       current={current}
-      phase={finished ? "revealed" : phase}
-      status={finished ? "final" : "live"}
+      phase={phase}
+      status={live.finished ? "final" : "live"}
       history={history}
       series={series}
-      paused={paused}
-      onTogglePause={finished ? undefined : () => setPaused((p) => !p)}
+      paused={false}
     />
   );
 }
@@ -820,10 +808,28 @@ function PreGameView({ game }: { game: Game }) {
   );
 }
 
+// ---- Loading / unavailable notice (matches the scoreboard surface) ---------
+function GameNotice({ title, body }: { title: string; body: string }) {
+  return (
+    <main className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6">
+      <section className="liquid-glass rounded-[var(--r-card)] px-6 py-20 text-center">
+        <div className="font-display text-2xl font-bold tracking-tight text-[var(--text)]">{title}</div>
+        <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--faint)]">{body}</p>
+      </section>
+    </main>
+  );
+}
+
 export function GameView({ id }: { id: string }) {
-  const game = getGame(id);
-  if (!game) notFound();
+  const { game, live, loading } = useGameFeed(id);
+  if (!game) {
+    return loading ? (
+      <GameNotice title="Loading game" body="Fetching the live feed…" />
+    ) : (
+      <GameNotice title="Game unavailable" body="Couldn’t load this game right now — try again shortly." />
+    );
+  }
   if (game.status === "upcoming") return <PreGameView game={game} />;
   if (game.status === "final") return <FinalGameView game={game} />;
-  return <LiveGameView game={game} />;
+  return <LiveGameView game={game} live={live!} />;
 }

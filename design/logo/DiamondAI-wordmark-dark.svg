@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" width="720" height="192" role="img" aria-label="DiamondAI">
+  <title>DiamondAI wordmark — for dark backgrounds</title>
+  <g transform="translate(-5.2 1.2) scale(0.8)">
+    <polygon points="30,27 70,27 60,49 40,49" fill="#f1f1f3"></polygon>
+    <polygon points="30,27 40,49 14,49" fill="#c4c4c8"></polygon>
+    <polygon points="70,27 86,49 60,49" fill="#dcdcdf"></polygon>
+    <polygon points="14,49 40,49 50,90" fill="#4d8bff"></polygon>
+    <polygon points="40,49 60,49 50,90" fill="#e4e4e7"></polygon>
+    <polygon points="60,49 86,49 50,90" fill="#ff4b51"></polygon>
+    <g stroke="#9a9a9e" stroke-width="1.1" stroke-linejoin="round" opacity="0.45" fill="none">
+      <path d="M40,49 30,27 M60,49 70,27 M40,49 50,90 M60,49 50,90"></path>
+    </g>
+    <polygon points="30,27 70,27 86,49 50,90 14,49" fill="none" stroke="#f1f1f3" stroke-width="2.2" stroke-linejoin="round" opacity="0.85"></polygon>
+    <line x1="14" y1="49" x2="86" y2="49" stroke="#f1f1f3" stroke-width="1.5" opacity="0.6"></line>
+  </g>
+
+  <text x="76" y="64" font-family="&#39;Bricolage Grotesque&#39;,&#39;Archivo&#39;,&#39;Helvetica Neue&#39;,Arial,sans-serif" font-weight="800" font-size="50" letter-spacing="-1.5">
+    <tspan fill="#f6f6f7">Diamond</tspan><tspan fill="#5e96ff">AI</tspan>
+  </text>
+</svg>

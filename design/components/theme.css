@@ -1,0 +1,236 @@
+/* DiamondAI — shared theme: true-neutral graphite base + liquid-glass system
+   (glass technique borrowed from the layered backdrop-filter + SVG refraction +
+    specular-edge recipe in clayharmon/webgl-liquid-glass) */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- true neutral graphite (chroma ~0, no blue cast) ---- */
+  --bg:        #1c1c1e;
+  --bg-deep:   #141415;
+
+  /* frosted surfaces — neutral gray, rely on backdrop-filter */
+  --glass:        rgba(60, 60, 62, 0.40);
+  --glass-2:      rgba(72, 72, 74, 0.48);
+  --glass-solid:  #2c2c2e;   /* fallback where blur unsupported */
+  --glass-border:    rgba(255, 255, 255, 0.12);
+  --glass-border-hi: rgba(255, 255, 255, 0.22);
+
+  --line:    rgba(255, 255, 255, 0.085);
+  --line-2:  rgba(255, 255, 255, 0.15);
+
+  /* neutral text ramp */
+  --text:    #f6f6f7;
+  --muted:   #adadb2;
+  --faint:   #76767b;
+
+  /* ---- red / white / blue accents (shared chroma & lightness, varied hue) ---- */
+  --model:      #4d8bff;            /* blue — the model */
+  --model-soft: rgba(77, 139, 255, 0.18);
+  --live:       #ff4b51;            /* red — live / miss */
+  --live-soft:  rgba(255, 75, 81, 0.18);
+  --chalk:      #ffffff;            /* white — chalk / highlight accent */
+  --chalk-soft: rgba(255, 255, 255, 0.14);
+  --warn:       #e2b94e;
+
+  /* ---- semantic fills & hairlines (so light mode can invert them) ---- */
+  --fill:        rgba(255,255,255,0.05);   /* quiet chip / button fill */
+  --fill-hi:     rgba(255,255,255,0.10);   /* hover fill */
+  --hair:        rgba(255,255,255,0.08);   /* faint gridline / cell edge */
+  --hair-mid:    rgba(255,255,255,0.18);   /* base / pip outline */
+  --hair-strong: rgba(255,255,255,0.28);
+  --track:       rgba(255,255,255,0.08);   /* meter / bar track */
+  --ink:         #ffffff;                  /* high-contrast ink (×, markers) */
+
+  /* ---- one radius scale, applied everywhere ---- */
+  --r-card: 18px;   /* panels & cards */
+  --r-chip: 8px;    /* tags, chips, rect buttons, skeletons, monograms */
+
+  --accent-grad: linear-gradient(90deg, var(--live), var(--model));
+
+  --shadow-card: 0 18px 40px -24px rgba(0,0,0,0.85), 0 4px 12px -7px rgba(0,0,0,0.55);
+  --shadow-lift: 0 34px 66px -26px rgba(0,0,0,0.9), 0 10px 24px -12px rgba(0,0,0,0.6);
+
+  /* specular edge stack reused by every glass surface */
+  --spec: inset 0 1px 0 rgba(255,255,255,0.30),
+          inset 1px 0 0 rgba(255,255,255,0.08),
+          inset -1px 0 0 rgba(255,255,255,0.06),
+          inset 0 -1px 1px rgba(0,0,0,0.5);
+}
+
+html, body { background: var(--bg); }
+
+/* fixed ambient wash — the stadium light the glass refracts; red + blue echoes */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 48% at 86% -4%, rgba(77, 139, 255, 0.16), transparent 60%),
+    radial-gradient(54% 46% at 6% 104%, rgba(255, 75, 81, 0.13), transparent 62%),
+    radial-gradient(42% 38% at 50% 50%, rgba(255, 255, 255, 0.035), transparent 64%),
+    var(--bg);
+}
+
+body {
+  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-mono { font-feature-settings: "tnum" 1; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ---- frosted "liquid glass" surfaces ---------------------------------------
+   element-level backdrop-filter does the work: SVG displacement bends the
+   backdrop (true refraction), then a heavy blur + saturate + brightness lens.
+   A specular inset stack + a top sheen ::after sell the wet-glass edge. */
+.glass-panel {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.015)),
+    var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.08);
+  backdrop-filter: url(#liquid-glass) blur(24px) saturate(185%) brightness(1.08);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-card);
+  box-shadow: var(--spec), var(--shadow-card);
+}
+
+/* red → blue signature hairline */
+.accent-rule {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-grad);
+  opacity: 0.9;
+}
+/* top-left sheen sweep — sits above content but fades out by ~40% height */
+.glass-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(133deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 34%);
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+
+.glass-pill {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.03)),
+    rgba(58, 58, 60, 0.5);
+  -webkit-backdrop-filter: blur(26px) saturate(190%) brightness(1.1);
+  backdrop-filter: url(#liquid-glass) blur(26px) saturate(190%) brightness(1.1);
+  border: 1px solid var(--glass-border-hi);
+  box-shadow: var(--spec), 0 16px 38px -14px rgba(0,0,0,0.7);
+}
+
+/* hover-lift for interactive cards */
+.glass-hover {
+  transition: transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease, border-color .28s ease;
+}
+.glass-hover:hover,
+.glass-hover:focus-within {
+  transform: translateY(-3px);
+  border-color: var(--glass-border-hi);
+  box-shadow: var(--spec), var(--shadow-lift);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-panel { background: var(--glass-solid); }
+  .glass-pill  { background: #353537; }
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .glass-hover:hover, .glass-hover:focus-within { transform: none; }
+}
+
+::selection { background: rgba(77,139,255,.30); }
+
+*::-webkit-scrollbar { width: 11px; height: 11px; }
+*::-webkit-scrollbar-thumb { background: var(--hair-mid); border-radius: 20px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--hair-strong); background-clip: content-box; }
+
+/* =================================================================
+   LIGHT MODE — neutral graphite inverted; accents deepen for contrast
+   ================================================================= */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:        #e9e9eb;
+  --bg-deep:   #dcdcde;
+
+  --glass:        rgba(255, 255, 255, 0.55);
+  --glass-2:      rgba(255, 255, 255, 0.65);
+  --glass-solid:  #f4f4f5;
+  --glass-border:    rgba(0, 0, 0, 0.09);
+  --glass-border-hi: rgba(0, 0, 0, 0.16);
+
+  --line:    rgba(0, 0, 0, 0.09);
+  --line-2:  rgba(0, 0, 0, 0.15);
+
+  --text:    #1b1b1d;
+  --muted:   #5a5a5f;
+  --faint:   #8c8c92;
+
+  --model:      #2f6bf0;
+  --model-soft: rgba(47, 107, 240, 0.12);
+  --live:       #e23a40;
+  --live-soft:  rgba(226, 58, 64, 0.12);
+  --chalk:      #1b1b1d;
+  --chalk-soft: rgba(0, 0, 0, 0.08);
+  --warn:       #b6822a;
+
+  --fill:        rgba(0,0,0,0.04);
+  --fill-hi:     rgba(0,0,0,0.08);
+  --hair:        rgba(0,0,0,0.09);
+  --hair-mid:    rgba(0,0,0,0.20);
+  --hair-strong: rgba(0,0,0,0.34);
+  --track:       rgba(0,0,0,0.07);
+  --ink:         #1b1b1d;
+
+  --shadow-card: 0 18px 40px -26px rgba(0,0,0,0.32), 0 4px 12px -8px rgba(0,0,0,0.16);
+  --shadow-lift: 0 34px 66px -28px rgba(0,0,0,0.38), 0 10px 24px -14px rgba(0,0,0,0.20);
+  --spec: inset 0 1px 0 rgba(255,255,255,0.85),
+          inset 0 -1px 1px rgba(0,0,0,0.05);
+}
+
+:root[data-theme="light"] body::before {
+  background:
+    radial-gradient(58% 48% at 86% -4%, rgba(47, 107, 240, 0.10), transparent 60%),
+    radial-gradient(54% 46% at 6% 104%, rgba(226, 58, 64, 0.08), transparent 62%),
+    var(--bg);
+}
+
+:root[data-theme="light"] .glass-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.62), rgba(255,255,255,0.38)),
+    var(--glass);
+}
+:root[data-theme="light"] .glass-panel::after {
+  background: linear-gradient(133deg, rgba(255,255,255,0.55), rgba(255,255,255,0) 34%);
+  mix-blend-mode: normal;
+  opacity: 0.55;
+}
+:root[data-theme="light"] .glass-pill {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.42)),
+    rgba(255, 255, 255, 0.5);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme="light"] .glass-panel { background: var(--glass-solid); }
+  :root[data-theme="light"] .glass-pill  { background: #fbfbfc; }
+}
+
+:root[data-theme="light"] ::selection { background: rgba(47,107,240,.22); }

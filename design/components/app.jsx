@@ -1,0 +1,20 @@
+/* DiamondAI — home (schedule) root: frosted pill nav + slate footer */
+
+function App() {
+  return (
+    <div className="min-h-screen">
+      <PillNav mode="home" />
+      <Schedule />
+      <footer className="mx-auto max-w-6xl px-4 pb-10 pt-4 sm:px-6">
+        <div className="border-t border-[var(--line)] pt-5">
+          <p className="max-w-2xl font-mono text-[10.5px] uppercase leading-relaxed tracking-[0.1em] text-[var(--faint)]">
+            DiamondAI · visual prototype. Predictions, win probability and accuracy are generated
+            from mock data and a simulated pitch ticker — not a live model.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);

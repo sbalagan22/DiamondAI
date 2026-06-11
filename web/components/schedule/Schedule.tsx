@@ -17,8 +17,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import { CountUp, Reveal, StaggerGroup, StaggerItem, TickNumber } from "@/components/ui/motion";
 import { PolymarketTicker } from "@/components/game/PolymarketTicker";
-import { useLiveGame } from "@/components/useLiveGame";
-import { getGames, SCHEDULE_DATE } from "@/lib/mock";
+import { useLiveGame, useSchedule } from "@/components/useLiveGame";
 import type { Game } from "@/lib/types";
 import { cx, pct, teamSplit } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
@@ -398,8 +397,18 @@ function SectionHead({ label, count }: { label: string; count: number }) {
   );
 }
 
+/** Format the API's "YYYY-MM-DD" slate date as "Weekday · Month D · YYYY". */
+function formatScheduleDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return "Today";
+  const dt = new Date(y, m - 1, d);
+  const weekday = dt.toLocaleDateString("en-US", { weekday: "long" });
+  const month = dt.toLocaleDateString("en-US", { month: "long" });
+  return `${weekday} · ${month} ${d} · ${y}`;
+}
+
 // Prominent "today" chip with a live pulse — the date as a designed component.
-function DateChip() {
+function DateChip({ date }: { date: string }) {
   const reduce = useReducedMotion();
   return (
     <motion.div
@@ -413,7 +422,7 @@ function DateChip() {
         <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--live)]" />
       </span>
       <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--text)]">
-        {SCHEDULE_DATE} · 2026
+        {date ? formatScheduleDate(date) : "Today"}
       </span>
     </motion.div>
   );
@@ -421,7 +430,7 @@ function DateChip() {
 
 export function Schedule() {
   const reduce = useReducedMotion();
-  const games = getGames();
+  const { games, date, loading } = useSchedule();
   const live = games.filter((g) => g.status === "live");
   const pre = games.filter((g) => g.status === "upcoming");
   const finals = games.filter((g) => g.status === "final");
@@ -440,7 +449,7 @@ export function Schedule() {
           }}
         />
         <div className="relative z-10 flex flex-col items-center">
-          <DateChip />
+          <DateChip date={date} />
           <Reveal delay={0.08}>
             <h1 className="mt-5 font-display text-[2.5rem] font-bold leading-[0.95] tracking-tight text-[var(--text)] sm:text-[3.6rem]">
               Every pitch, predicted.
@@ -504,7 +513,7 @@ export function Schedule() {
 
       {games.length === 0 && (
         <div className="surface py-16 text-center font-mono text-sm uppercase tracking-[0.16em] text-[var(--faint)]">
-          No games scheduled
+          {loading ? "Loading today’s games…" : "No games scheduled"}
         </div>
       )}
     </main>

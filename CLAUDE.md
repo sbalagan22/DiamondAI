@@ -33,11 +33,11 @@ Scope: this file governs the `web/` Next.js frontend. The ML/Python code has its
 ---
 
 # Project
-DiamondAI's live MLB game frontend: a schedule of games and a live game view that, per pitch, shows what's actually happening alongside the AI model's prediction (pitch type, outcome, win probability), plus a feed comparing predictions to reality. This phase is VISUAL only — driven by mock data and a simulated live ticker. Real MLB Stats API + model inference server are wired in a later phase.
+DiamondAI's live MLB game frontend: a schedule of games and a live game view that, per pitch, shows what's actually happening alongside the AI model's prediction (pitch type, outcome, win probability), plus a feed comparing predictions to reality. The GAME/SCHEDULE data is now REAL (live MLB Stats API, server-side, polled). The AI PREDICTION side is still a mock stub (`web/lib/sim.ts`) — the real model inference server is wired in a later phase.
 
 # Critical Rules
 - NEVER change the chosen typeface. It is already set; exploit its weights/sizes, do not swap it.
-- NEVER add real network calls this phase — all game data comes from the mock generators/ticker. EXCEPTION: the server-side Polymarket proxy (`web/app/api/polymarket/*`) fetches real public Polymarket MLB markets as a live comparison reference; it must stay server-side and degrade gracefully. No other real feeds/model calls.
+- REAL feeds allowed this phase: the server-side MLB Stats API proxy (`web/app/api/schedule`, `web/app/api/game/[gamePk]`), mapped GUMBO→types ONLY in `web/lib/mlbAdapter.ts`, plus the Polymarket proxy (`web/app/api/polymarket/*`). All MLB calls stay server-side (CORS) and degrade gracefully (no key/secrets). NEVER add OTHER real feeds, and NEVER make the AI PREDICTION / win-prob / accuracy real — those MUST stay the `sim.ts` mock stub; never present mock predictions as live model output.
 - NEVER change the mock-data TypeScript interfaces casually — they are the contract the real MLB feed + inference server will fulfill. Changing them breaks the later swap.
 - ALWAYS keep the visible "mock data" indicator on screen this phase.
 - NEVER introduce the templated, vibe-coded look: no generic dashboard cards, gratuitous gradients/glows, filler animations, or decorative icon soup.
@@ -51,9 +51,9 @@ DiamondAI's live MLB game frontend: a schedule of games and a live game view tha
 # Architecture
 - `web/app/` — App Router pages/layouts (schedule, live game view)
 - `web/components/` — UI components (one concern each, typed props)
-- `web/lib/` — mock data generators, types (the data contract), pure helpers
-- `web/hooks/` — the simulated live-ticker hook and any view state
-- `web/lib/types.ts` — the mock-data interfaces = the real-data contract; treat as load-bearing
+- `web/lib/` — types (the data contract), `mlbAdapter.ts` (real MLB GUMBO→types), `mlbConfig.ts` (URLs/poll cadence), `sim.ts` (mock prediction stub), pure helpers
+- `web/components/useLiveGame.ts` — client data layer: `useSchedule`/`useGameFeed`/`useLiveGame` fetch the route handlers and poll live games (same shapes the components already consume)
+- `web/lib/types.ts` — the domain interfaces = the data contract the real feed fulfills; treat as load-bearing
 
 **Stack:** Next.js (App Router) · TypeScript · Tailwind · the chosen font · mock data only
 
