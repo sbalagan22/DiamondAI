@@ -2,13 +2,14 @@
 
 /* DiamondAI — compact live Polymarket reference. A slim probability ticker:
    logo + a two-way odds bar + a link out to the game's Polymarket page. Shown
-   on upcoming/live schedule cards and the game page (never on finals). Kept
-   grayscale on purpose — model-blue is reserved for *our* model, so the market
-   reads clearly as the external comparison. */
+   on upcoming/live schedule cards and the game page (never on finals). The bar
+   is tinted with each side's team primary color; the trailing side is dimmed so
+   the leader still reads at a glance. */
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { cx, pct } from "@/lib/ui";
 import type { PolymarketMarket } from "@/lib/polymarket";
+import { TEAMS, TEAM_META } from "@/lib/teams";
 
 const REFRESH_MS = 45_000;
 type Status = "loading" | "ready" | "empty" | "error";
@@ -87,6 +88,8 @@ export function PolymarketTicker({
   }
 
   const aLead = market.priceA >= market.priceB;
+  const colorA = teamColor(market.teamA);
+  const colorB = teamColor(market.teamB);
   return (
     <div className={className}>
       <div className="flex items-center justify-between gap-2">
@@ -106,12 +109,12 @@ export function PolymarketTicker({
         style={{ height: 8, boxShadow: "inset 0 0 0 1px var(--hair-mid)" }}
       >
         <div
-          className="transition-[width] duration-700 ease-out"
-          style={{ width: `${Math.max(6, pct(market.priceA))}%`, background: aLead ? "var(--muted)" : "var(--hair-mid)" }}
+          className="transition-[width,opacity] duration-700 ease-out"
+          style={{ width: `${Math.max(6, pct(market.priceA))}%`, background: colorA, opacity: aLead ? 1 : 0.4 }}
         />
         <div
-          className="transition-[width] duration-700 ease-out"
-          style={{ width: `${Math.max(6, pct(market.priceB))}%`, background: aLead ? "var(--hair-mid)" : "var(--muted)" }}
+          className="transition-[width,opacity] duration-700 ease-out"
+          style={{ width: `${Math.max(6, pct(market.priceB))}%`, background: colorB, opacity: aLead ? 0.4 : 1 }}
         />
       </div>
       <div className="mt-1.5 flex items-baseline justify-between font-mono text-[10.5px] tabular-nums">
@@ -124,6 +127,16 @@ export function PolymarketTicker({
       </div>
     </div>
   );
+}
+
+// Resolve a Polymarket outcome name ("Boston Red Sox") to that team's primary
+// color. Falls back to the neutral muted token if no team matches.
+function teamColor(name: string): string {
+  const n = name.toLowerCase();
+  for (const t of Object.values(TEAMS)) {
+    if (n.includes(t.name.toLowerCase())) return TEAM_META[t.id]?.primaryColor ?? "var(--muted)";
+  }
+  return "var(--muted)";
 }
 
 // "Boston Red Sox" -> "Red Sox" (last word, or last two for Sox/Jays/etc).
