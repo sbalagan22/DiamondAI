@@ -22,6 +22,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+# Memory-conservative defaults for the CPU deploy (Render free tier = 512 MB).
+# Must be set BEFORE `import jax`; setdefault so render.yaml / an explicit env wins.
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
+os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
+
 import jax
 import numpy as np
 import requests
@@ -193,9 +198,13 @@ def fetch_feed(game_pk: str) -> dict[str, Any]:
 # --- FastAPI app ---------------------------------------------------------------
 
 app = FastAPI(title="DiamondAI inference")
+# Allowed origins from env (comma-separated); default permissive. Calls are
+# server-to-server so this is belt-and-suspenders — set CORS_ALLOW_ORIGINS to the
+# Vercel domain in production once it exists.
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ALLOW_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # calls are server-to-server; permissive is fine for local dev
+    allow_origins=_cors_origins,
     allow_methods=["GET"],
     allow_headers=["*"],
 )

@@ -1,7 +1,17 @@
 .venv/
-/data/
 __pycache__/
 *.pyc
-# model checkpoints — never commit (Orbax dirs)
+.DS_Store
+
+# Training data is large/regenerable — ignore the dir, but KEEP the two small
+# files the inference server loads at boot (model vocab + player index).
+# sequences.parquet (~37 MB) stays ignored; the server never reads it.
+/data/*
+!/data/tokenized/
+/data/tokenized/*
+!/data/tokenized/vocab.json
+!/data/tokenized/players.json
+
+# Model checkpoints: keep /checkpoints/ out of git, but the deployed step-6000
+# Orbax dir (6000/, ~29 MB) IS committed — the server restores it on boot.
 /checkpoints/
-/6000/

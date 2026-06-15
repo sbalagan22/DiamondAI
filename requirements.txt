@@ -1,12 +1,16 @@
-pybaseball
-pandas
-pyarrow
-typing_extensions>=4.8
-tqdm
-jax[cpu]
-flax
-optax
-orbax-checkpoint
-fastapi
-uvicorn
-pytest
+# DiamondAI inference server — CPU JAX deploy (Render free tier).
+# Pinned to the working local .venv versions so the deploy matches local exactly.
+# jax[cpu] pulls the CPU jaxlib (NO TPU/libtpu). Data-collection + test deps that
+# the server never imports live in requirements-dev.txt to keep the build lean.
+jax[cpu]==0.10.1
+jaxlib==0.10.1
+flax==0.12.7
+optax==0.2.8
+orbax-checkpoint==0.12.0
+numpy==2.4.6
+pandas==3.0.3
+pyarrow==24.0.0
+requests==2.34.2
+fastapi==0.136.3
+uvicorn==0.49.0
+typing_extensions==4.15.0

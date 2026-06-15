@@ -1,0 +1,70 @@
+{
+  "pad_id": 0,
+  "field_sizes": {
+    "pitch_type_id": 7,
+    "outcome_id": 6,
+    "zone_id": 14,
+    "balls": 4,
+    "strikes": 3,
+    "outs": 3,
+    "base_state": 8,
+    "inning": 11,
+    "inning_topbot": 2,
+    "score_diff": 21,
+    "stand": 2,
+    "p_throws": 2,
+    "pitch_num_in_pa": 16,
+    "next_pitch_type": 7,
+    "next_pitch_outcome": 6,
+    "ab_outcome": 9,
+    "home_win": 2,
+    "pitcher_idx": 6209,
+    "batter_idx": 6209
+  },
+  "num_players": 6208,
+  "player_vocab_size": 6209,
+  "pitch_type_names": {
+    "0": "FOUR_SEAM",
+    "1": "SINKER",
+    "2": "CUTTER",
+    "3": "SLIDER",
+    "4": "CURVE",
+    "5": "OFFSPEED",
+    "6": "OTHER"
+  },
+  "outcome_names": {
+    "0": "BALL",
+    "1": "CALLED_STRIKE",
+    "2": "SWINGING_STRIKE",
+    "3": "FOUL",
+    "4": "IN_PLAY",
+    "5": "HBP"
+  },
+  "ab_outcome_names": {
+    "0": "K",
+    "1": "BB",
+    "2": "HBP",
+    "3": "SINGLE",
+    "4": "DOUBLE",
+    "5": "TRIPLE",
+    "6": "HR",
+    "7": "OUT",
+    "8": "OTHER"
+  },
+  "zone_names": {
+    "0": "1",
+    "1": "2",
+    "2": "3",
+    "3": "4",
+    "4": "5",
+    "5": "6",
+    "6": "7",
+    "7": "8",
+    "8": "9",
+    "9": "11",
+    "10": "12",
+    "11": "13",
+    "12": "14",
+    "13": "UNKNOWN_ZONE"
+  }
+}

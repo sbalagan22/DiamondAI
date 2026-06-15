@@ -1,0 +1,21 @@
+# Render Blueprint — DiamondAI CPU inference server.
+# New > Blueprint > connect this repo; Render reads this file and provisions the service.
+services:
+  - type: web
+    name: diamondai-inference
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Render injects $PORT; bind it (do NOT hardcode 8000). --ckpt defaults to 6000.
+    startCommand: uvicorn src.serve.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.5
+      - key: JAX_PLATFORMS
+        value: cpu
+      - key: INFERENCE_CKPT
+        value: "6000"
+      # Permissive by default; set to the Vercel domain after the frontend deploys.
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"

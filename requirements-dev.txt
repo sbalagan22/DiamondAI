@@ -1,0 +1,6 @@
+# Local-only deps: data collection (pybaseball pull) and tests.
+# NOT installed on the inference deploy — these keep the Render build lean (512 MB tier).
+-r requirements.txt
+pybaseball==2.2.7
+tqdm==4.68.1
+pytest==9.0.3
