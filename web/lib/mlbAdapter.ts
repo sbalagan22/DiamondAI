@@ -32,9 +32,50 @@ export interface ScheduleResponse {
 }
 export interface GameResponse {
   game: Game | null;
-  /** The next, not-yet-thrown pitch: real current state + a MOCK prediction. */
+  /** The next, not-yet-thrown pitch: real current state + the model's prediction. */
   pending: PitchEvent | null;
+  /** True when the trained model served the predictions; false on sim.ts fallback. */
+  predictionsReal: boolean;
   error?: string;
+}
+
+// ---- inference server response (the real model) -----------------------------
+interface ModelPrediction {
+  /** Pitch-type distribution, model bucket names (FOUR_SEAM…OTHER). */
+  pitchType: { type: string; prob: number }[];
+  outcome: { strikeout: number; walk: number; out: number; hit: number };
+}
+interface ModelPerPitch {
+  index: number;
+  homeWinProb: number;
+  prediction: ModelPrediction | null;
+}
+export interface ModelPredictions {
+  step: number;
+  pitchCount: number;
+  windowStart: number;
+  perPitch: ModelPerPitch[];
+  pending: (ModelPrediction & { homeWinProb: number }) | null;
+  homeWinProb: number | null;
+}
+
+/** Model pitch-type bucket -> the frontend's display code (1:1 bijection). */
+const MODEL_BUCKET_TO_CODE: Record<string, PitchTypeCode> = {
+  FOUR_SEAM: "FF",
+  SINKER: "SI",
+  CUTTER: "FC",
+  SLIDER: "SL",
+  CURVE: "CU",
+  OFFSPEED: "CH",
+  OTHER: "SW",
+};
+
+/** Map the model's prediction into the frontend `PitchPrediction` contract. */
+function toPrediction(mp: ModelPrediction): PitchPrediction {
+  const pitches = mp.pitchType
+    .map((p) => ({ type: MODEL_BUCKET_TO_CODE[p.type] ?? "FF", prob: p.prob }))
+    .sort((a, b) => b.prob - a.prob);
+  return { pitches, outcome: mp.outcome };
 }
 
 // ---- loose typings for the GUMBO subset we read -----------------------------
@@ -376,7 +417,7 @@ export function mapSchedule(feed: ScheduleFeed): ScheduleResponse {
 }
 
 // ---- live feed --------------------------------------------------------------
-export function mapFeed(feed: GumboFeed): GameResponse {
+export function mapFeed(feed: GumboFeed, predictions: ModelPredictions | null): GameResponse {
   const gd = feed.gameData;
   const ld = feed.liveData;
   const status = mapStatus(gd?.status?.abstractGameState);
@@ -385,6 +426,10 @@ export function mapFeed(feed: GumboFeed): GameResponse {
   const gamePk = gd?.game?.pk ?? feed.gamePk ?? 0;
   const rng = mulberry32(gamePk || 1);
   const boxTeams = ld?.boxscore?.teams;
+
+  // Model prediction per pitch index (when the inference server served them).
+  const predByIndex = new Map<number, ModelPerPitch>();
+  for (const pp of predictions?.perPitch ?? []) predByIndex.set(pp.index, pp);
 
   const events: PitchEvent[] = [];
   let bases: [boolean, boolean, boolean] = [...EMPTY_BASES];
@@ -464,16 +509,18 @@ export function mapFeed(feed: GumboFeed): GameResponse {
         };
       }
 
+      const idx = events.length;
+      const mp = predByIndex.get(idx);
       events.push({
-        index: events.length,
+        index: idx,
         pre,
-        prediction: mockPrediction(rng, pitcherId, pre),
+        prediction: mp?.prediction ? toPrediction(mp.prediction) : mockPrediction(rng, pitcherId, pre),
         pitchType: mapPitchType(e.details?.type?.code),
         mph,
         call,
         atBat,
         post,
-        homeWinProb: clampWp(winProb(post, status === "final" && ended)),
+        homeWinProb: mp ? clampWp(mp.homeWinProb) : clampWp(winProb(post, status === "final" && ended)),
       });
 
       balls = postBalls;
@@ -507,7 +554,19 @@ export function mapFeed(feed: GumboFeed): GameResponse {
     liveIndex: events.length,
   };
 
-  return { game, pending: buildPending(ld?.linescore, status, events.length, awayScore, homeScore, rng) };
+  return {
+    game,
+    pending: buildPending(
+      ld?.linescore,
+      status,
+      events.length,
+      awayScore,
+      homeScore,
+      rng,
+      predictions?.pending ?? null,
+    ),
+    predictionsReal: predictions != null,
+  };
 }
 
 /** The next, not-yet-thrown pitch: real current state from the linescore + a
@@ -520,6 +579,7 @@ function buildPending(
   awayScore: number,
   homeScore: number,
   rng: () => number,
+  modelPending: (ModelPrediction & { homeWinProb: number }) | null,
 ): PitchEvent | null {
   if (status !== "live" || !ls) return null;
   const batter = ls.offense?.batter?.fullName;
@@ -540,11 +600,11 @@ function buildPending(
   return {
     index,
     pre,
-    prediction: mockPrediction(rng, ls.defense?.pitcher?.id, pre),
+    prediction: modelPending ? toPrediction(modelPending) : mockPrediction(rng, ls.defense?.pitcher?.id, pre),
     pitchType: "FF",
     mph: 0,
     call: "ball",
     post: pre,
-    homeWinProb: clampWp(winProb(pre)),
+    homeWinProb: modelPending ? clampWp(modelPending.homeWinProb) : clampWp(winProb(pre)),
   };
 }
