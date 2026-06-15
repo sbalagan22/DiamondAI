@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-# Memory-conservative defaults for the CPU deploy (Render free tier = 512 MB).
-# Must be set BEFORE `import jax`; setdefault so render.yaml / an explicit env wins.
+# Memory-conservative defaults for the CPU deploy (Hugging Face Spaces / Docker).
+# Must be set BEFORE `import jax`; setdefault so the Dockerfile ENV / an explicit env wins.
 os.environ.setdefault("JAX_PLATFORMS", "cpu")
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 

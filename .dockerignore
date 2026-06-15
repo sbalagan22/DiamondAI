@@ -1,0 +1,14 @@
+# Keep the Docker build context (and HF Space upload) lean. The Dockerfile COPYs
+# only what the server needs; everything else is excluded here.
+.venv/
+.git/
+web/
+docs/
+**/__pycache__/
+*.pyc
+.DS_Store
+requirements-dev.txt
+checkpoints/
+# Training data the server never reads (37 MB) — keep it out of the image.
+data/tokenized/sequences.parquet
+data/tokenized/dataset-metadata.json
