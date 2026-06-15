@@ -45,10 +45,11 @@
   --faint:   #76767b;
 
   /* ---- red / white / blue accents ---- */
-  --model:      #4d8bff;            /* blue — the model */
-  --model-soft: rgba(77, 139, 255, 0.18);
+  --model:      #eaeff7;            /* near-white — the model */
+  --model-soft: rgba(234, 239, 247, 0.16);
   --live:       #ff4b51;            /* red — live state */
   --live-soft:  rgba(255, 75, 81, 0.18);
+  --win:        #a3e635;            /* lime green — win probability */
   --chalk:      #ffffff;
   --chalk-soft: rgba(255, 255, 255, 0.14);
   --warn:       #e2b94e;
@@ -226,6 +227,7 @@ body {
   --model-soft: rgba(47, 107, 240, 0.12);
   --live:       #e23a40;
   --live-soft:  rgba(226, 58, 64, 0.12);
+  --win:        #4d7c0f;            /* lime green, deepened for light bg */
   --chalk:      #1b1b1d;
   --chalk-soft: rgba(0, 0, 0, 0.08);
   --warn:       #b6822a;

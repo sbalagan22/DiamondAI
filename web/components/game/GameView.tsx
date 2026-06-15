@@ -412,13 +412,13 @@ function WinProbPanel({
                 {fav.name} favored
               </div>
               <div className="text-[13px] text-[var(--muted)]">
-                <span className="font-semibold text-[var(--model)]">{pct(favP)}%</span> to win it
+                <span className="font-semibold text-[var(--win)]">{pct(favP)}%</span> to win it
               </div>
             </div>
           </div>
           <div
             className="flex items-center gap-1 font-mono text-xs font-semibold tabular-nums"
-            style={{ color: dUp ? "var(--model)" : dDown ? "var(--live)" : "var(--faint)" }}
+            style={{ color: dUp ? "var(--win)" : dDown ? "var(--live)" : "var(--faint)" }}
           >
             <motion.span
               key={Math.round(homeP * 1000)}

@@ -67,7 +67,7 @@ export const TEAM_META: Record<string, TeamMeta> = {
   tex: { primaryColor: "#003278" },
   atl: { primaryColor: "#13274F" },
   mia: { primaryColor: "#17171A" },
-  nym: { primaryColor: "#002D72" },
+  nym: { primaryColor: "#FF5910" },
   phi: { primaryColor: "#E81828" },
   wsh: { primaryColor: "#AB0003" },
   chc: { primaryColor: "#0E3386" },

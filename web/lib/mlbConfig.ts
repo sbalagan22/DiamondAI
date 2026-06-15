@@ -12,7 +12,9 @@ export const MLB_BASE = "https://statsapi.mlb.com";
  * DiamondAI inference server (the real trained model). Called SERVER-SIDE from the
  * game route / adapter; falls back to the sim.ts stub when unreachable.
  */
-export const INFERENCE_URL = process.env.INFERENCE_URL ?? "http://localhost:8000";
+// `.replace` strips any trailing slash so a Vercel value like
+// "https://…hf.space/" can't produce a double-slash 404 on `${INFERENCE_URL}/health`.
+export const INFERENCE_URL = (process.env.INFERENCE_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 /** Server-side cache windows (seconds) for the upstream MLB fetches. */
 export const SCHEDULE_REVALIDATE = 15;

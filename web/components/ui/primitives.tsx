@@ -447,14 +447,14 @@ export function WinProbBar({
         </div>
       </div>
       <div className="mt-2 flex items-baseline justify-between font-mono tabular-nums">
-        <span className="text-[15px] font-semibold text-[var(--text)]">
+        <span className="text-[15px] font-semibold text-[var(--win)]">
           {pct(awayP)}
           <span className="text-[11px] text-[var(--faint)]">%</span>
         </span>
         <span className="text-[9.5px] uppercase tracking-[0.18em] text-[var(--faint)]">
           chance to win
         </span>
-        <span className="text-[15px] font-semibold text-[var(--text)]">
+        <span className="text-[15px] font-semibold text-[var(--win)]">
           {pct(homeP)}
           <span className="text-[11px] text-[var(--faint)]">%</span>
         </span>
