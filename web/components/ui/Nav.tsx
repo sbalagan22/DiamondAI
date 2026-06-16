@@ -5,8 +5,26 @@
    keeping the bar short. */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, Wordmark } from "./primitives";
+
+// Mono nav link with an active treatment (used for the "The Model" explainer link).
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const active = pathname === href;
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`rounded-full px-1 font-mono text-[10.5px] uppercase tracking-[0.16em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)] ${
+        active ? "text-[var(--text)]" : "text-[var(--muted)] hover:text-[var(--text)]"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
 
 // Animated dark/light switch — a sliding knob with a sun/moon morph.
 // Initial state is read from the DOM (set pre-paint in layout.tsx) so the apply
@@ -121,7 +139,7 @@ export function PillNav({ mode = "home" }: { mode?: "home" | "game" }) {
               <Wordmark />
             </Link>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 sm:gap-4">
             {mode === "game" && (
               <Link
                 href="/"
@@ -130,6 +148,7 @@ export function PillNav({ mode = "home" }: { mode?: "home" | "game" }) {
                 Schedule
               </Link>
             )}
+            <NavLink href="/how-it-works">The Model</NavLink>
             <ThemeSwitch />
           </div>
         </motion.nav>

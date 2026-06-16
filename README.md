@@ -1,6 +1,6 @@
 # DiamondAI — MLB pitch-sequence transformer
 
-An autoregressive, decoder-only Transformer (JAX + Flax) that reads a baseball game one pitch at a time and predicts the next pitch, the eventual at-bat outcome, and a running home-team win probability. Trained on a decade of pitch-level Statcast data on a Kaggle TPU, with a hand-written FlashAttention-style Pallas kernel as the systems-ML component.
+An autoregressive, decoder-only Transformer (JAX + Flax) that reads a baseball game one pitch at a time and predicts the next pitch, the eventual at-bat outcome, and a running home-team win probability. Trained on a decade of pitch-level Statcast data on a Kaggle TPU, with a hand-written FlashAttention-style Pallas kernel as the systems-ML component. A FastAPI server runs the trained model live against the MLB Stats API GUMBO feed.
 
 ## What it is, and what it is not
 
@@ -115,6 +115,16 @@ A hand-written **FlashAttention-style fused attention kernel in Pallas** ([src/m
 
 Two caveats stated plainly: the kernel is a **standalone artifact — it is not wired into `transformer.py` or the training path**, which uses Flax's built-in attention. And because this model's `max_len` is **256** (the regime where XLA wins), the kernel does **not** accelerate this model's training; it is a forward-looking systems exercise for the long-context regime, validated for correctness and benchmarked honestly.
 
+## Live serving
+
+The model side is **real**, not a mock: a FastAPI inference server ([src/serve/app.py](src/serve/app.py)) loads the step-6000 checkpoint once on boot (reusing eval's CPU single-device restore), fetches a game's live MLB Stats API **GUMBO** `feed/live`, and runs **one causal forward pass** over the pitch sequence. Per request it returns next-pitch-type and at-bat-outcome distributions plus the running home-win probability, aligned to the live pitch indices and cached ~5 s per game.
+
+The serving feature encoder ([src/serve/gumbo_features.py](src/serve/gumbo_features.py)) is the **twin of the training tokenizer**: it maps GUMBO fields through the same frozen `vocab.py` bucket logic, so a live pitch is encoded byte-identically to how Statcast was tokenized. The one source of subtle bugs — GUMBO's human-text `details.description` vs. Statcast's snake_case — is guarded by [src/serve/check_live.py](src/serve/check_live.py), which replays a finished game and asserts accuracy lands near the eval **~50.6%**, not near random (1/7 ≈ 14%).
+
+Observed **live next-pitch-type accuracy is ~48–56%** — a touch under the 50.6% held-out figure, as expected: 2026 rosters drift from the 2015–2024 training span, so more current-day players fall back to the UNKNOWN player embedding.
+
+Deployment is two services wired by one env var (`INFERENCE_URL`): the inference server runs as a CPU-JAX Docker image on **Hugging Face Spaces** (port 7860), and the **Next.js frontend** ([web/](web/)) runs on **Vercel**. The frontend calls the server only server-side via its route handlers; `/api/model-status` proxies the server's `/health` so a badge can tell whether predictions are the live model. When the free-tier Space is asleep or cold-starting, the inference fetch times out and the frontend cleanly **falls back to a clearly labeled `sim.ts` mock predictor** — the site never looks broken, and real predictions resume once the Space is warm. See [DEPLOY.md](DEPLOY.md).
+
 ## Repository layout
 
 ```
@@ -124,10 +134,13 @@ src/
            attention_pallas.py (Pallas fused kernel), attention_ref.py (plain-JAX oracle)
   train/   train.py (shard_map data-parallel loop, Orbax ckpt, early stop), loss.py (masked multi-task loss)
   eval/    evaluate.py (held-out metrics + baselines + calibration), report.py (scoring/plot/artifacts)
+  serve/   app.py (FastAPI inference server), gumbo_features.py (GUMBO→features, twin of tokenize), check_live.py (live-accuracy gate)
 notebooks/ train_kaggle.py (TPU training), bench_attention.py (kernel autotune + benchmark)
 tests/     test_attention.py (kernel correctness vs reference)
 eval_out/  metrics.json, summary.md, calibration.png, calibration.csv (generated)
 data/      cached Statcast parquet + data/tokenized/ (gitignored)
+web/       Next.js frontend (schedule + live game view); calls the inference server server-side
+Dockerfile, DEPLOY.md   CPU-JAX inference image (Hugging Face Spaces) + deploy guide
 ```
 
 ## Reproducing
@@ -153,6 +166,11 @@ python -m src.eval.evaluate --ckpt <path-to-best-step-dir>
 # Kernel: correctness (CPU interpret) and benchmark (TPU)
 pytest tests/test_attention.py
 python notebooks/bench_attention.py
+
+# 6. Serve live predictions: run the FastAPI inference server on the step-6000 checkpoint
+JAX_PLATFORMS=cpu uvicorn src.serve.app:app --host 0.0.0.0 --port 8000
+#    Sanity-check live GUMBO tokenization by replaying a finished game (accuracy ≈ eval, not random):
+python -m src.serve.check_live <gamePk>
 ```
 
 The evaluator restores the TPU-saved (8-device replicated) checkpoint onto whatever device is present — it forces a single-device replicated sharding — so eval runs on a 1-core CPU without the saved 8-device topology.
@@ -165,12 +183,10 @@ The evaluator restores the TPU-saved (8-device replicated) checkpoint onto whate
 - **One reported run.** Results come from a single training run and checkpoint (best step 6000); no seed averaging, ensembling, or full hyperparameter sweep beyond the documented overfit→fix change.
 - **The Pallas kernel is not in the training path** and does not speed up this model at `max_len = 256` (see the kernel section).
 - **Eval was run on CPU** (inference only); the device used is recorded in `eval_out/metrics.json`.
-- **Live serving is not built yet** — see below.
-
-## Planned / in progress
-
-A live-serving demo against real games is intended but not implemented in this repository. The plan is a FastAPI endpoint plus a poller for the MLB Stats API GUMBO feed (wrapped in a thin adapter so a feed change is a one-file fix, polled ≥ 5s with caching and backoff), feeding a small React/Vite front-end. None of that code exists yet; nothing here should be read as a working live service.
+- **Live predictions can fall back to the mock.** The free-tier inference Space sleeps after inactivity; during a cold start the frontend serves the clearly labeled `sim.ts` stub until the model is warm (see [Live serving](#live-serving)). Live next-pitch-type accuracy (~48–56%) also runs a touch under the held-out 50.6% because of 2026 roster drift onto the UNKNOWN player embedding.
 
 ## Tech stack
 
-Python 3.12 · JAX + Flax · Optax · Orbax · Pallas (TPU kernel) · `pybaseball` (Statcast) · pandas / pyarrow / NumPy · Matplotlib · pytest. Trained on Kaggle TPU v5e-8. Planned serving layer: FastAPI + MLB Stats API (GUMBO) + React/Vite.
+**Model / training:** Python 3.12 · JAX + Flax · Optax · Orbax · Pallas (TPU kernel) · `pybaseball` (Statcast) · pandas / pyarrow / NumPy · Matplotlib · pytest. Trained on Kaggle TPU v5e-8.
+
+**Serving / frontend:** FastAPI + JAX (CPU) over the live MLB Stats API (GUMBO) feed, Dockerized on Hugging Face Spaces · Next.js (App Router) + TypeScript + Tailwind frontend on Vercel.
