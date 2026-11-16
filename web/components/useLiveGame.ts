@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import type { ArchiveResponse } from "@/lib/archive";
 import type { GameResponse, ScheduleResponse } from "@/lib/mlbAdapter";
 import { LIVE_GAME_POLL_MS, SCHEDULE_POLL_MS } from "@/lib/mlbConfig";
 import type { Game, GameSnapshot, GameStatus, PitchEvent } from "@/lib/types";
@@ -180,4 +181,23 @@ export function useGameFeed(id: string): GameFeedState {
   );
 
   return { game: feed?.game ?? null, live, loading, error };
+}
+
+/** Past analyzed games, fetched once when there is no current slate. */
+export function useArchive(enabled: boolean): ArchiveResponse | null {
+  const [archive, setArchive] = useState<ArchiveResponse | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    fetch("/api/archive")
+      .then((r) => (r.ok ? (r.json() as Promise<ArchiveResponse>) : null))
+      .then((data) => {
+        if (alive && data) setArchive(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [enabled]);
+  return archive;
 }

@@ -5,7 +5,7 @@
    liquid glass on the hero scoreboard, a centered/responsive matchup, model-blue
    accents on key numbers, and a compact Polymarket reference in the win-prob panel. */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Reveal, TickNumber } from "@/components/ui/motion";
 import {
   Bases,
@@ -23,6 +23,7 @@ import {
   type CardStatus,
 } from "@/components/ui/primitives";
 import { useGameFeed, type LiveGameState } from "@/components/useLiveGame";
+import { MODEL_WINDOW } from "@/lib/mlbConfig";
 import type { Game } from "@/lib/types";
 import { cx, pct, teamSplit } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
@@ -400,7 +401,7 @@ function WinProbPanel({
 
   return (
     <Panel>
-      <PanelHead label="Win probability" right="Live model" tone="model" />
+      <PanelHead label="Win probability" right={showMarket ? "Live model" : "Model"} tone="model" />
       <div className="px-5 py-4">
         <WinProbBar away={away} home={home} homeP={homeP} />
 
@@ -468,8 +469,7 @@ function StatBlock({ label, value, sub }: { label: string; value: string; sub?: 
 function AccuracyPanel({ history }: { history: ViewPitch[] }) {
   const n = history.length;
   const typeHits = history.filter((h) => h.typeHit).length;
-  const outcomeHits = history.filter((h) => h.outcomeHit).length;
-  const acc = n ? Math.round((outcomeHits / n) * 100) : 0;
+  const acc = n ? Math.round((typeHits / n) * 100) : 0;
   return (
     <Panel>
       <PanelHead label="Model accuracy" right={`${String(n).padStart(2, "0")} tracked`} tone="model" />
@@ -480,14 +480,14 @@ function AccuracyPanel({ history }: { history: ViewPitch[] }) {
             {n ? <span className="text-2xl text-[var(--muted)]">%</span> : null}
           </span>
           <span className="mb-1.5 font-mono text-[10px] uppercase leading-snug tracking-[0.16em] text-[var(--faint)]">
-            outcome calls
+            pitch types
             <br />
-            correct
+            called right
           </span>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-[var(--line)] pt-4">
-          <StatBlock label="Pitch type" value={n ? `${Math.round((typeHits / n) * 100)}%` : "—"} sub={`${typeHits}/${n}`} />
-          <StatBlock label="Outcome" value={n ? `${acc}%` : "—"} sub={`${outcomeHits}/${n}`} />
+          <StatBlock label="Pitches tracked" value={String(n)} />
+          <StatBlock label="Called right" value={String(typeHits)} />
         </div>
       </div>
     </Panel>
@@ -601,6 +601,8 @@ function GameLayout({
   status,
   history,
   series,
+  scored,
+  scrub,
   paused,
   onTogglePause,
 }: {
@@ -610,6 +612,10 @@ function GameLayout({
   status: CardStatus;
   history: ViewPitch[];
   series: number[];
+  /** Pitches the accuracy panel counts; defaults to the feed history. */
+  scored?: ViewPitch[];
+  /** Optional control rendered under the scoreboard (final-game scrubber). */
+  scrub?: React.ReactNode;
   paused: boolean;
   onTogglePause?: () => void;
 }) {
@@ -636,6 +642,7 @@ function GameLayout({
           paused={paused}
           onTogglePause={onTogglePause}
         />
+        {scrub}
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.55fr_1fr]">
           <div className="flex flex-col gap-4">
             <PredictionHero pitch={current} phase={phase} batterName={current.batter} />
@@ -649,7 +656,7 @@ function GameLayout({
               marketHintText={marketHint(game)}
               showMarket={status !== "final"}
             />
-            <AccuracyPanel history={history} />
+            <AccuracyPanel history={scored ?? history} />
           </div>
         </div>
         <div className="mt-4">
@@ -704,20 +711,62 @@ function LiveGameView({ game, live }: { game: Game; live: LiveGameState }) {
   );
 }
 
-// ---- Final: static recap of a completed game -------------------------------
+// ---- Final: a completed game you can scrub pitch by pitch ------------------
+function PitchScrubber({
+  all,
+  idx,
+  onChange,
+}: {
+  all: ViewPitch[];
+  idx: number;
+  onChange: (i: number) => void;
+}) {
+  const p = all[idx];
+  const last = all.length - 1;
+  const step = "rounded-full border border-[var(--line-2)] bg-[var(--fill)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--text)] transition-colors hover:bg-[var(--fill-hi)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)] disabled:opacity-35 disabled:hover:bg-[var(--fill)]";
+  return (
+    <Panel className="mt-4">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3.5 sm:px-5">
+        <div className="flex items-center gap-2">
+          <button type="button" className={step} disabled={idx <= 0} onClick={() => onChange(idx - 1)} aria-label="Previous pitch">
+            ←
+          </button>
+          <button type="button" className={step} disabled={idx >= last} onClick={() => onChange(idx + 1)} aria-label="Next pitch">
+            →
+          </button>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={last}
+          value={idx}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label="Scrub through the game, pitch by pitch"
+          className="h-1 min-w-[10rem] flex-1 cursor-pointer accent-[var(--model)]"
+        />
+        <span className="whitespace-nowrap font-mono text-[10.5px] uppercase tabular-nums tracking-[0.16em] text-[var(--muted)]">
+          Pitch {idx + 1} / {all.length} · {p.half === "bottom" ? "Bot" : "Top"} {p.inning}
+        </span>
+      </div>
+    </Panel>
+  );
+}
+
 function FinalGameView({ game }: { game: Game }) {
-  const all = game.events.map(viewPitch);
-  const last = all[all.length - 1];
-  const history = all.slice().reverse().slice(0, 16);
-  const series = game.events.map((e) => e.homeWinProb).slice(-26);
+  const all = useMemo(() => game.events.map(viewPitch), [game]);
+  const [idx, setIdx] = useState(all.length - 1);
+  const upto = all.slice(0, idx + 1);
+  const series = upto.map((p) => p.homeWinProbAfter);
   return (
     <GameLayout
       game={game}
-      current={last}
+      current={all[idx]}
       phase="revealed"
       status="final"
-      history={history}
+      history={upto.slice(-16).reverse()}
+      scored={upto.filter((p) => p.index >= MODEL_WINDOW)}
       series={series.length ? series : [game.pregameHomeWinProb]}
+      scrub={<PitchScrubber all={all} idx={idx} onChange={setIdx} />}
       paused={false}
     />
   );

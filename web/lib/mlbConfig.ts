@@ -16,6 +16,9 @@ export const MLB_BASE = "https://statsapi.mlb.com";
 // "https://…hf.space/" can't produce a double-slash 404 on `${INFERENCE_URL}/health`.
 export const INFERENCE_URL = (process.env.INFERENCE_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
+/** The model needs a short pitch history; earlier pitches use the stub fallback. */
+export const MODEL_WINDOW = 7;
+
 /** Server-side cache windows (seconds) for the upstream MLB fetches. */
 export const SCHEDULE_REVALIDATE = 15;
 export const GAME_REVALIDATE = 10;

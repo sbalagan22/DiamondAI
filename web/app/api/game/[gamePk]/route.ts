@@ -1,4 +1,5 @@
 import { mapFeed, type GameResponse, type GumboFeed, type ModelPredictions } from "@/lib/mlbAdapter";
+import { getArchivedGame } from "@/lib/archive";
 import { GAME_REVALIDATE, INFERENCE_URL, MLB_BASE } from "@/lib/mlbConfig";
 
 // Ask the inference server for the real model predictions. Times out fast and
@@ -23,6 +24,8 @@ async function fetchPredictions(gamePk: string): Promise<ModelPredictions | null
 // on inference failure the predictions fall back to the sim.ts stub.
 export async function GET(_req: Request, ctx: { params: Promise<{ gamePk: string }> }) {
   const { gamePk } = await ctx.params;
+  const archived = getArchivedGame(gamePk);
+  if (archived) return Response.json(archived);
   const url = `${MLB_BASE}/api/v1.1/game/${encodeURIComponent(gamePk)}/feed/live`;
   try {
     const [res, predictions] = await Promise.all([

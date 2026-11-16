@@ -17,7 +17,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import { CountUp, Reveal, StaggerGroup, StaggerItem, TickNumber } from "@/components/ui/motion";
 import { PolymarketTicker } from "@/components/game/PolymarketTicker";
-import { useLiveGame, useSchedule } from "@/components/useLiveGame";
+import { useArchive, useLiveGame, useSchedule } from "@/components/useLiveGame";
 import type { Game } from "@/lib/types";
 import { cx, pct, teamSplit } from "@/lib/ui";
 import { viewPitch, viewTeam, type ViewPitch, type ViewTeam } from "@/lib/view";
@@ -141,7 +141,7 @@ function CardLink({ id, label }: { id: string; label: string }) {
   );
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCard({ game, caption }: { game: Game; caption?: string }) {
   const d = useDisplay(game);
   const away = viewTeam(game.away);
   const home = viewTeam(game.home);
@@ -193,7 +193,7 @@ function GameCard({ game }: { game: Game }) {
       )}
       {final && (
         <div className="flex items-center justify-between border-t border-[var(--line)] px-5 py-3.5">
-          <Eyebrow>Result</Eyebrow>
+          <Eyebrow>{caption ?? "Result"}</Eyebrow>
           <span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
             {(d.homeScore > d.awayScore ? home : away).abbr} win ·{" "}
             {Math.max(d.homeScore, d.awayScore)}–{Math.min(d.homeScore, d.awayScore)}
@@ -407,8 +407,14 @@ function formatScheduleDate(iso: string): string {
   return `${weekday} · ${month} ${d} · ${y}`;
 }
 
+/** "2026-10-23" -> "Oct 23". */
+function formatShortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 // Prominent "today" chip with a live pulse — the date as a designed component.
-function DateChip({ date }: { date: string }) {
+function DateChip({ date, seasonOver }: { date: string; seasonOver?: boolean }) {
   const reduce = useReducedMotion();
   return (
     <motion.div
@@ -417,12 +423,16 @@ function DateChip({ date }: { date: string }) {
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className="inline-flex items-center gap-2.5 rounded-full border border-[var(--line-2)] bg-[var(--surface)] px-4 py-2 shadow-[var(--shadow-card)]"
     >
-      <span className="relative inline-flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--live)] opacity-70" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--live)]" />
-      </span>
+      {seasonOver ? (
+        <span className="inline-flex h-2 w-2 rounded-full bg-[var(--faint)]" />
+      ) : (
+        <span className="relative inline-flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--live)] opacity-70" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--live)]" />
+        </span>
+      )}
       <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--text)]">
-        {date ? formatScheduleDate(date) : "Today"}
+        {seasonOver ? "MLB season over" : date ? formatScheduleDate(date) : "Today"}
       </span>
     </motion.div>
   );
@@ -434,6 +444,11 @@ export function Schedule() {
   const live = games.filter((g) => g.status === "live");
   const pre = games.filter((g) => g.status === "upcoming");
   const finals = games.filter((g) => g.status === "final");
+  const seasonOver = !loading && games.length === 0;
+  const archive = useArchive(seasonOver);
+  const accPct = archive?.stats.pitches
+    ? Math.round((archive.stats.typeHits / archive.stats.pitches) * 100)
+    : 0;
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
@@ -449,7 +464,7 @@ export function Schedule() {
           }}
         />
         <div className="relative z-10 flex flex-col items-center">
-          <DateChip date={date} />
+          <DateChip date={date} seasonOver={seasonOver} />
           <Reveal delay={0.08}>
             <h1 className="mt-5 font-display text-[2.5rem] font-bold leading-[0.95] tracking-tight text-[var(--text)] sm:text-[3.6rem]">
               Every pitch, predicted.
@@ -463,13 +478,32 @@ export function Schedule() {
             animate={{ scaleX: 1, opacity: 1 }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
           />
-          <Reveal delay={0.18} className="mt-8 w-full max-w-md sm:w-auto">
-            <div className="liquid-glass flex divide-x divide-[var(--line)] overflow-hidden rounded-[var(--r-card)]">
-              <StatCell label="Live now" value={<CountUp to={live.length} />} accent="var(--live)" />
-              <StatCell label="Model acc" value={<CountUp to={73} suffix="%" />} accent="var(--model)" />
-              <StatCell label="Pitches scored" value={<CountUp to={2481} comma />} />
-            </div>
-          </Reveal>
+          {seasonOver && (
+            <Reveal delay={0.14}>
+              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-[var(--muted)]">
+                Here are our past predicted games.
+              </p>
+            </Reveal>
+          )}
+          {seasonOver ? (
+            archive && (
+              <Reveal delay={0.18} className="mt-8 w-full max-w-md sm:w-auto">
+                <div className="liquid-glass flex divide-x divide-[var(--line)] overflow-hidden rounded-[var(--r-card)]">
+                  <StatCell label="Games analyzed" value={<CountUp to={archive.stats.games} />} />
+                  <StatCell label="Pitch type acc" value={<CountUp to={accPct} suffix="%" />} accent="var(--model)" />
+                  <StatCell label="Pitches scored" value={<CountUp to={archive.stats.pitches} comma />} />
+                </div>
+              </Reveal>
+            )
+          ) : (
+            <Reveal delay={0.18} className="mt-8 w-full max-w-md sm:w-auto">
+              <div className="liquid-glass flex divide-x divide-[var(--line)] overflow-hidden rounded-[var(--r-card)]">
+                <StatCell label="Live now" value={<CountUp to={live.length} />} accent="var(--live)" />
+                <StatCell label="Model acc" value={<CountUp to={73} suffix="%" />} accent="var(--model)" />
+                <StatCell label="Pitches scored" value={<CountUp to={2481} comma />} />
+              </div>
+            </Reveal>
+          )}
         </div>
       </header>
 
@@ -511,9 +545,22 @@ export function Schedule() {
         </section>
       )}
 
-      {games.length === 0 && (
+      {seasonOver && archive && (
+        <section className="mb-12">
+          <SectionHead label={archive.label} count={archive.entries.length} />
+          <StaggerGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {archive.entries.map((e) => (
+              <StaggerItem key={e.game.id} className="h-full">
+                <GameCard game={e.game} caption={`Game ${e.number} · ${formatShortDate(e.date)}`} />
+              </StaggerItem>
+            ))}
+          </StaggerGroup>
+        </section>
+      )}
+
+      {games.length === 0 && !seasonOver && (
         <div className="surface py-16 text-center font-mono text-sm uppercase tracking-[0.16em] text-[var(--faint)]">
-          {loading ? "Loading today’s games…" : "No games scheduled"}
+          Loading today’s games…
         </div>
       )}
     </main>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, Bricolage_Grotesque, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { MockBadge } from "@/components/ui/MockBadge";
 
 // Variable fonts — omit `weight` and expose as CSS variables (see globals.css).
 const archivo = Archivo({
@@ -76,7 +75,6 @@ export default function RootLayout({
           </filter>
         </svg>
         {children}
-        <MockBadge />
       </body>
     </html>
   );
