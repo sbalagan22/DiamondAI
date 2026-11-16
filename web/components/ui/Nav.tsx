@@ -9,19 +9,25 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, Wordmark } from "./primitives";
 
-// Mono nav link with an active treatment (used for the "The Model" explainer link).
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  const pathname = usePathname();
-  const active = pathname === href;
+// Primary call-to-action: a solid pill so "The Model" reads as the thing to open.
+function ModelLink() {
+  const active = usePathname() === "/how-it-works";
   return (
     <Link
-      href={href}
+      href="/how-it-works"
       aria-current={active ? "page" : undefined}
-      className={`rounded-full px-1 font-mono text-[10.5px] uppercase tracking-[0.16em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)] ${
-        active ? "text-[var(--text)]" : "text-[var(--muted)] hover:text-[var(--text)]"
+      className={`group inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--model)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] sm:px-4 ${
+        active
+          ? "border border-[var(--line-2)] text-[var(--text)]"
+          : "bg-[var(--text)] text-[var(--bg)] hover:opacity-90"
       }`}
     >
-      {children}
+      The Model
+      {!active && (
+        <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">
+          →
+        </span>
+      )}
     </Link>
   );
 }
@@ -148,7 +154,7 @@ export function PillNav({ mode = "home" }: { mode?: "home" | "game" }) {
                 Schedule
               </Link>
             )}
-            <NavLink href="/how-it-works">The Model</NavLink>
+            <ModelLink />
             <ThemeSwitch />
           </div>
         </motion.nav>
